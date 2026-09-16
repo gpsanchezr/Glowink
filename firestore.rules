@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isChatParticipant(chatId) {
+      return signedIn() &&
+        (chatId.matches('chat_' + request.auth.uid + '_.*') ||
+         chatId.matches('chat_.*_' + request.auth.uid));
+    }
+
+    match /users_glowink/{userId} {
+      allow read: if signedIn();
+      allow create, update, delete: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /chats_glowink/{chatId} {
+      allow read, write: if isChatParticipant(chatId);
+
+      match /messages/{messageId} {
+        allow read, write: if isChatParticipant(chatId);
+      }
+
+      match /games/{gameId} {
+        allow read, write: if isChatParticipant(chatId);
+      }
+    }
+
+    match /stories_glowink/{storyId} {
+      allow read, write: if signedIn();
+    }
+  }
+}

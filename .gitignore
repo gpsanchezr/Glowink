@@ -1,0 +1,33 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# --- Seguridad: nunca subir credenciales de Firebase/Google al repositorio ---
+# Ver docs/MANUAL_DESARROLLADOR.md, sección "Seguridad y credenciales", para el
+# procedimiento de rotación de claves si alguna vez se llegó a subir por error.
+app/google-services.json
+google-services.json
+*.keystore
+*.jks
+key.properties
+
+# --- Logs de crash del JVM/Gradle (no son parte del código, son basura de build) ---
+hs_err_pid*.log
+replay_pid*.log
+*.hprof
+
+# --- Empaquetados que no deben viajar dentro del repo ni de un .zip del proyecto ---
+*.apk
+*.aab
