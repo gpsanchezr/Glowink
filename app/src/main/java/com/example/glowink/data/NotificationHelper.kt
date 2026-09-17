@@ -11,28 +11,80 @@ import com.example.glowink.MainActivity
 import com.example.glowink.R
 
 /**
- * Gestor centralizado de notificaciones locales y push para Retos y Desafíos en Glowink.
+ * Gestor centralizado de notificaciones push y locales para Mensajes, Retos y Desafíos en Glowink.
  */
 object NotificationHelper {
 
-    const val CHANNEL_ID = "glow_challenges"
-    const val CHANNEL_NAME = "Retos y Desafíos Glowink"
+    const val CHANNEL_MESSAGES_ID = "glow_messages"
+    const val CHANNEL_MESSAGES_NAME = "Mensajes de Chat Glowink"
 
-    fun createNotificationChannel(context: Context) {
+    const val CHANNEL_CHALLENGES_ID = "glow_challenges"
+    const val CHANNEL_CHALLENGES_NAME = "Retos y Desafíos Glowink"
+
+    fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            // Canal 1: Mensajes de Chat
+            val chatChannel = NotificationChannel(
+                CHANNEL_MESSAGES_ID,
+                CHANNEL_MESSAGES_NAME,
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Notificaciones de retos, partidas y invitaciones de juego"
+                description = "Notificaciones en tiempo real de nuevos mensajes de chat"
                 enableLights(true)
                 lightColor = android.graphics.Color.CYAN
                 enableVibration(true)
             }
-            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
+
+            // Canal 2: Retos e Invitaciones de Juego
+            val gameChannel = NotificationChannel(
+                CHANNEL_CHALLENGES_ID,
+                CHANNEL_CHALLENGES_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notificaciones de retos, partidas e invitaciones de juego"
+                enableLights(true)
+                lightColor = android.graphics.Color.GREEN
+                enableVibration(true)
+            }
+
+            manager.createNotificationChannel(chatChannel)
+            manager.createNotificationChannel(gameChannel)
         }
+    }
+
+    fun showNewMessageNotification(
+        context: Context,
+        senderName: String,
+        messageText: String,
+        chatId: String = ""
+    ) {
+        createNotificationChannels(context)
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("navigate_to", "chat_screen")
+            putExtra("chatId", chatId)
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            System.currentTimeMillis().toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES_ID)
+            .setSmallIcon(R.drawable.ic_launcher_glowink)
+            .setContentTitle("💬 $senderName")
+            .setContentText(messageText)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        notifySafely(context, notification)
     }
 
     fun showChallengeNotification(
@@ -42,7 +94,7 @@ object NotificationHelper {
         gameId: String = "duel_neon",
         chatId: String = ""
     ) {
-        createNotificationChannel(context)
+        createNotificationChannels(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -53,12 +105,12 @@ object NotificationHelper {
 
         val pendingIntent = PendingIntent.getActivity(
             context,
-            0,
+            System.currentTimeMillis().toInt(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, CHANNEL_CHALLENGES_ID)
             .setSmallIcon(R.drawable.ic_launcher_glowink)
             .setContentTitle(title)
             .setContentText(body)
@@ -67,6 +119,10 @@ object NotificationHelper {
             .setContentIntent(pendingIntent)
             .build()
 
+        notifySafely(context, notification)
+    }
+
+    private fun notifySafely(context: Context, notification: android.app.Notification) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             androidx.core.content.ContextCompat.checkSelfPermission(
                 context,

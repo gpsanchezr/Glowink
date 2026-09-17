@@ -19,33 +19,26 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.example.glowink.data.GameState
 import com.example.glowink.data.Message
@@ -53,6 +46,7 @@ import com.example.glowink.data.User
 import com.example.glowink.ui.theme.*
 import com.example.glowink.ui.viewmodel.ChatDetailUiState
 import com.example.glowink.ui.viewmodel.ChatViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun ChatScreen(
@@ -76,6 +70,8 @@ fun ChatScreen(
         onBackClick = onBackClick,
         onFriendProfileClick = onFriendProfileClick,
         onSendMessage = { text -> viewModel?.sendTextMessage(text) },
+        onSendImageMessage = { uri -> viewModel?.sendImageMessage(uri) },
+        onSendAudioMessage = { uri -> viewModel?.sendAudioMessage(uri) },
         onSendGameInvitation = { viewModel?.sendGameInvitation() },
         onMakeMove = { index -> viewModel?.makeMove(index) },
         onStartNewGame = { viewModel?.startNewGame() }
@@ -89,6 +85,8 @@ fun ChatScreenContent(
     onBackClick: () -> Unit = {},
     onFriendProfileClick: () -> Unit = {},
     onSendMessage: (String) -> Unit = {},
+    onSendImageMessage: (android.net.Uri) -> Unit = {},
+    onSendAudioMessage: (android.net.Uri) -> Unit = {},
     onSendGameInvitation: () -> Unit = {},
     onMakeMove: (Int) -> Unit = {},
     onStartNewGame: () -> Unit = {}
@@ -98,6 +96,8 @@ fun ChatScreenContent(
     var isStickerMenuOpen by remember { mutableStateOf(false) }
     var isGamesCatalogOpen by remember { mutableStateOf(false) }
     var isStickerCreatorOpen by remember { mutableStateOf(false) }
+    var activeCallType by remember { mutableStateOf<String?>(null) } // null, "VOICE", "VIDEO"
+
     var selectedStickerUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var userStickers by remember { mutableStateOf(listOf<String>()) }
     var inputText by remember { mutableStateOf("") }
@@ -113,11 +113,17 @@ fun ChatScreenContent(
     }
 
     val attachmentPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) { onSendMessage("🖼️ Imagen adjunta"); Toast.makeText(context, "Imagen enviada", Toast.LENGTH_SHORT).show() }
+        if (uri != null) {
+            onSendImageMessage(uri)
+            Toast.makeText(context, "Enviando imagen...", Toast.LENGTH_SHORT).show()
+        }
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        if (bitmap != null) { onSendMessage("📸 Foto capturada"); Toast.makeText(context, "Foto enviada", Toast.LENGTH_SHORT).show() }
+        if (bitmap != null) {
+            onSendMessage("📸 Foto capturada")
+            Toast.makeText(context, "Foto capturada enviada", Toast.LENGTH_SHORT).show()
+        }
     }
 
     Scaffold(containerColor = ObsidianBackground) { innerPadding ->
@@ -131,8 +137,14 @@ fun ChatScreenContent(
                     gameState = gameState,
                     onBackClick = onBackClick,
                     onFriendProfileClick = onFriendProfileClick,
-                    onCallClick = { Toast.makeText(context, "Llamando...", Toast.LENGTH_SHORT).show() },
-                    onVideoCallClick = { Toast.makeText(context, "Videollamada...", Toast.LENGTH_SHORT).show() }
+                    onCallClick = {
+                        activeCallType = "VOICE"
+                        com.example.glowink.util.GlowSoundManager.playGameAction(context)
+                    },
+                    onVideoCallClick = {
+                        activeCallType = "VIDEO"
+                        com.example.glowink.util.GlowSoundManager.playGameAction(context)
+                    }
                 )
 
                 val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -158,10 +170,25 @@ fun ChatScreenContent(
                 ChatBottomInputBar(
                     inputText = inputText,
                     onInputTextChange = { inputText = it },
-                    onSendMessage = { if (inputText.isNotBlank()) { com.example.glowink.util.GlowSoundManager.playMessageSent(context); onSendMessage(inputText); inputText = "" } },
+                    onSendMessage = {
+                        if (inputText.isNotBlank()) {
+                            com.example.glowink.util.GlowSoundManager.playMessageSent(context)
+                            onSendMessage(inputText)
+                            inputText = ""
+                        }
+                    },
                     onToggleGamePanel = { isGamesCatalogOpen = true },
                     onToggleAttachmentMenu = { isAttachmentMenuOpen = true },
                     onToggleStickerMenu = { isStickerMenuOpen = true }
+                )
+            }
+
+            // Overlay de Llamada / Videollamada Activa
+            if (activeCallType != null) {
+                GlowCallDialog(
+                    friend = friend,
+                    callType = activeCallType!!,
+                    onEndCall = { activeCallType = null }
                 )
             }
 
@@ -170,8 +197,15 @@ fun ChatScreenContent(
                     NeonAttachmentMenuPanel(
                         onOptionSelected = { opt ->
                             isAttachmentMenuOpen = false
-                            if (opt == "Galería") attachmentPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                            else if (opt == "Cámara") cameraLauncher.launch(null)
+                            if (opt == "Galería") {
+                                attachmentPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            } else if (opt == "Cámara") {
+                                cameraLauncher.launch(null)
+                            } else if (opt == "Nota de Voz") {
+                                onSendAudioMessage(android.net.Uri.EMPTY)
+                                onSendMessage("🎙️ Nota de Voz (0:08)")
+                                Toast.makeText(context, "Nota de voz enviada", Toast.LENGTH_SHORT).show()
+                            }
                         },
                         onClose = { isAttachmentMenuOpen = false }
                     )
@@ -212,7 +246,15 @@ fun ChatScreenContent(
 }
 
 @Composable
-private fun ChatTopBar(friend: User?, currentUser: User?, gameState: GameState?, onBackClick: () -> Unit, onFriendProfileClick: () -> Unit, onCallClick: () -> Unit, onVideoCallClick: () -> Unit) {
+private fun ChatTopBar(
+    friend: User?,
+    currentUser: User?,
+    gameState: GameState?,
+    onBackClick: () -> Unit,
+    onFriendProfileClick: () -> Unit,
+    onCallClick: () -> Unit,
+    onVideoCallClick: () -> Unit
+) {
     val streakValue = friend?.rachaVictorias ?: 0
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -245,49 +287,111 @@ private fun ChatTopBar(friend: User?, currentUser: User?, gameState: GameState?,
 private fun ChatMessageItem(message: Message, currentUserId: String, onPlayInviteClick: () -> Unit) {
     val isSelf = message.senderId == currentUserId
     val isSticker = message.text.startsWith("STICKER:") || message.text in listOf("🐱", "🤖", "💀", "🎮", "💖", "🚀", "👻", "✨")
+    val hasImage = message.isImage || !message.imageUrl.isNullOrBlank()
+    val hasAudio = message.isAudio || !message.audioUrl.isNullOrBlank()
 
     Box(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = if (isSelf) Alignment.CenterEnd else Alignment.CenterStart
     ) {
-        if (isSticker) {
-            val stickerSymbol = message.text.removePrefix("STICKER:")
-            Box(
-                modifier = Modifier
-                    .size(90.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(
-                        Brush.radialGradient(
-                            listOf(
-                                if (isSelf) ElectricCyan.copy(alpha = 0.35f) else Color(0xFFFF007F).copy(alpha = 0.35f),
-                                Color(0xFF1B1233)
+        when {
+            isSticker -> {
+                val stickerSymbol = message.text.removePrefix("STICKER:")
+                Box(
+                    modifier = Modifier
+                        .size(90.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(
+                            Brush.radialGradient(
+                                listOf(
+                                    if (isSelf) ElectricCyan.copy(alpha = 0.35f) else Color(0xFFFF007F).copy(alpha = 0.35f),
+                                    Color(0xFF1B1233)
+                                )
                             )
                         )
-                    )
-                    .border(
-                        1.5.dp,
-                        if (isSelf) ElectricCyan else Color(0xFFFF007F),
-                        RoundedCornerShape(20.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(stickerSymbol, fontSize = 50.sp)
+                        .border(
+                            1.5.dp,
+                            if (isSelf) ElectricCyan else Color(0xFFFF007F),
+                            RoundedCornerShape(20.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(stickerSymbol, fontSize = 50.sp)
+                }
             }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .then(if (isSelf) Modifier.glassmorphicChatBubbleSelf() else Modifier.glassmorphicChatBubbleOther())
-                    .padding(12.dp)
-            ) {
-                Text(message.text, color = if (isSelf) OnBackgroundText else Color.White, fontSize = 14.sp)
-                if (message.isGameInvite) {
-                    Button(
-                        onClick = onPlayInviteClick,
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = UltravioletPurple)
+            hasImage -> {
+                val imgUrl = message.imageUrl ?: message.text.removePrefix("IMAGE:")
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = 240.dp)
+                        .then(if (isSelf) Modifier.glassmorphicChatBubbleSelf() else Modifier.glassmorphicChatBubbleOther())
+                        .padding(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF140D2A)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text("🎮 Jugar Ahora", color = Color.White, fontSize = 12.sp)
+                        if (!imgUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = imgUrl,
+                                contentDescription = "Foto compartida",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Text("🖼️ [Foto]", color = ElectricCyan, fontSize = 24.sp)
+                        }
+                    }
+                    if (message.text.isNotBlank() && !message.text.startsWith("IMAGE:")) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(message.text, color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 4.dp))
+                    }
+                }
+            }
+            hasAudio -> {
+                Row(
+                    modifier = Modifier
+                        .widthIn(max = 220.dp)
+                        .then(if (isSelf) Modifier.glassmorphicChatBubbleSelf() else Modifier.glassmorphicChatBubbleOther())
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(if (isSelf) NeonLime else ElectricCyan),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("▶", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(message.text.ifBlank { "🎙️ Nota de Voz" }, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("0:05 • Audio Neón", color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp)
+                    }
+                }
+            }
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .then(if (isSelf) Modifier.glassmorphicChatBubbleSelf() else Modifier.glassmorphicChatBubbleOther())
+                        .padding(12.dp)
+                ) {
+                    Text(message.text, color = if (isSelf) OnBackgroundText else Color.White, fontSize = 14.sp)
+                    if (message.isGameInvite) {
+                        Button(
+                            onClick = onPlayInviteClick,
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = UltravioletPurple)
+                        ) {
+                            Text("🎮 Jugar Ahora", color = Color.White, fontSize = 12.sp)
+                        }
                     }
                 }
             }
@@ -296,13 +400,174 @@ private fun ChatMessageItem(message: Message, currentUserId: String, onPlayInvit
 }
 
 @Composable
-private fun ChatBottomInputBar(inputText: String, onInputTextChange: (String) -> Unit, onSendMessage: () -> Unit, onToggleGamePanel: () -> Unit, onToggleAttachmentMenu: () -> Unit, onToggleStickerMenu: () -> Unit) {
+private fun ChatBottomInputBar(
+    inputText: String,
+    onInputTextChange: (String) -> Unit,
+    onSendMessage: () -> Unit,
+    onToggleGamePanel: () -> Unit,
+    onToggleAttachmentMenu: () -> Unit,
+    onToggleStickerMenu: () -> Unit
+) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(8.dp)) {
         IconButton(onClick = onToggleAttachmentMenu) { NeonClipIcon(color = ElectricCyan) }
         IconButton(onClick = onToggleStickerMenu) { Text("✨", fontSize = 18.sp) }
         IconButton(onClick = onToggleGamePanel) { Text("🎮", fontSize = 18.sp) }
-        OutlinedTextField(value = inputText, onValueChange = onInputTextChange, modifier = Modifier.weight(1f), shape = RoundedCornerShape(24.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = ElectricCyan, unfocusedBorderColor = Color(0x4400F0FF), focusedTextColor = Color.White), placeholder = { Text("Mensaje...", color = OnSurfaceMuted) })
+        OutlinedTextField(
+            value = inputText,
+            onValueChange = onInputTextChange,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(24.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = ElectricCyan,
+                unfocusedBorderColor = Color(0x4400F0FF),
+                focusedTextColor = Color.White
+            ),
+            placeholder = { Text("Mensaje...", color = OnSurfaceMuted) }
+        )
         IconButton(onClick = onSendMessage) { Text("🚀", fontSize = 20.sp) }
+    }
+}
+
+@Composable
+private fun GlowCallDialog(
+    friend: User?,
+    callType: String, // "VOICE" or "VIDEO"
+    onEndCall: () -> Unit
+) {
+    var callSeconds by remember { mutableIntStateOf(0) }
+    var isMuted by remember { mutableStateOf(false) }
+    var isSpeakerOn by remember { mutableStateOf(true) }
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000)
+            callSeconds++
+        }
+    }
+
+    val minutes = callSeconds / 60
+    val seconds = callSeconds % 60
+    val timeFormatted = "%02d:%02d".format(minutes, seconds)
+
+    Dialog(onDismissRequest = onEndCall) {
+        GlassContainer(
+            shape = RoundedCornerShape(28.dp),
+            borderColor = if (callType == "VIDEO") ElectricCyan else NeonLime,
+            borderWidth = 2.dp,
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (callType == "VIDEO") "📹 VIDEOLLAMADA NEÓN" else "📞 LLAMADA DE VOZ NEÓN",
+                    color = if (callType == "VIDEO") ElectricCyan else NeonLime,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(
+                                    (if (callType == "VIDEO") ElectricCyan else NeonLime).copy(alpha = 0.4f),
+                                    Color(0xFF140D2A)
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    com.example.glowink.ui.avatar.GlowAvatarFrame(
+                        config = friend?.avatarConfig ?: com.example.glowink.data.Avatar3DConfig(),
+                        size = 86.dp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = friend?.username ?: "Jugador",
+                    color = Color.White,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Conectado • $timeFormatted",
+                    color = NeonLime,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+
+                Text(
+                    text = "Cifrado P2P End-to-End",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 11.sp
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(if (isMuted) Color.Red.copy(alpha = 0.3f) else Color(0x331E1735))
+                            .border(1.5.dp, if (isMuted) Color.Red else ElectricCyan, CircleShape)
+                            .clickable {
+                                isMuted = !isMuted
+                                Toast.makeText(context, if (isMuted) "Micrófono silenciado" else "Micrófono activo", Toast.LENGTH_SHORT).show()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(if (isMuted) "🎙️❌" else "🎙️", fontSize = 20.sp)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFF2222))
+                            .border(2.dp, Color.White, CircleShape)
+                            .clickable {
+                                com.example.glowink.util.GlowSoundManager.playGameAction(context)
+                                onEndCall()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("☎️", fontSize = 28.sp)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(if (!isSpeakerOn) Color.Red.copy(alpha = 0.3f) else Color(0x331E1735))
+                            .border(1.5.dp, ElectricCyan, CircleShape)
+                            .clickable {
+                                isSpeakerOn = !isSpeakerOn
+                                Toast.makeText(context, if (callType == "VIDEO") "Cámara alternada" else "Altavoz activado", Toast.LENGTH_SHORT).show()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(if (callType == "VIDEO") "📹" else "🔊", fontSize = 20.sp)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -366,11 +631,12 @@ private fun NeonAttachmentMenuPanel(onOptionSelected: (String) -> Unit, onClose:
     Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
         Text("ADJUNTOS NEÓN 📎", color = ElectricCyan, fontWeight = FontWeight.Black)
         Spacer(modifier = Modifier.height(16.dp))
-        val opts = listOf("Galería" to "🖼️", "Cámara" to "📸", "Documento" to "📄", "Ubicación" to "📍")
+        val opts = listOf("Galería" to "🖼️", "Cámara" to "📸", "Nota de Voz" to "🎙️", "Ubicación" to "📍")
         Row(horizontalArrangement = Arrangement.SpaceAround, modifier = Modifier.fillMaxWidth()) {
             opts.forEach { (title, icon) ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onOptionSelected(title) }) {
                     Box(modifier = Modifier.size(50.dp).clip(CircleShape).background(ElectricCyan.copy(0.1f)).border(1.dp, ElectricCyan, CircleShape), contentAlignment = Alignment.Center) { Text(icon, fontSize = 24.sp) }
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(title, color = Color.White, fontSize = 10.sp)
                 }
             }

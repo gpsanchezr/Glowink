@@ -284,31 +284,14 @@ class ChatViewModel(
     }
 
     /**
-     * Subes la foto de perfil del usuario a Firebase Storage y actualiza la URL en Firestore.
+     * Guarda la URI local de foto de perfil directamente en Firestore (Modo MVP Plan Spark 100% gratuito).
      */
     fun uploadProfileImageToStorage(uri: android.net.Uri) {
         val uid = auth.currentUser?.uid.orEmpty()
         if (uid.isBlank()) return
-        _authLoading.value = true
-        val storageRef = com.google.firebase.storage.FirebaseStorage.getInstance()
-            .reference
-            .child("profile_images/$uid.jpg")
-
-        storageRef.putFile(uri)
-            .continueWithTask { task ->
-                if (!task.isSuccessful) {
-                    task.exception?.let { throw it }
-                }
-                storageRef.downloadUrl
-            }
-            .addOnCompleteListener { task ->
-                _authLoading.value = false
-                if (task.isSuccessful) {
-                    val downloadUri = task.result.toString()
-                    firestore.collection("users_glowink").document(uid)
-                        .update("profileImageUrl", downloadUri, "avatarUrl", downloadUri)
-                }
-            }
+        val localUriString = uri.toString()
+        firestore.collection("users_glowink").document(uid)
+            .update("profileImageUrl", localUriString, "avatarUrl", localUriString)
     }
 
     /**
@@ -363,6 +346,36 @@ class ChatViewModel(
     }
 
     fun sendTextMessage(text: String) = sendMessage(text)
+
+    fun sendImageMessage(uri: android.net.Uri, caption: String = "🖼️ Imagen adjunta") {
+        val chatId = _activeChatId.value
+        if (chatId.isBlank()) return
+
+        // Modo MVP Gratuito Plan Spark: Se guarda la URI local directamente en Cloud Firestore
+        viewModelScope.launch {
+            repository.sendMessage(
+                chatId = chatId,
+                text = caption,
+                imageUrl = uri.toString(),
+                messageType = "IMAGE"
+            )
+        }
+    }
+
+    fun sendAudioMessage(uri: android.net.Uri, durationSec: Int = 5) {
+        val chatId = _activeChatId.value
+        if (chatId.isBlank()) return
+
+        // Modo MVP Gratuito Plan Spark: Se guarda la metatag/URI local directamente en Cloud Firestore
+        viewModelScope.launch {
+            repository.sendMessage(
+                chatId = chatId,
+                text = "🎙️ Nota de Voz (${durationSec}s)",
+                audioUrl = if (uri != android.net.Uri.EMPTY) uri.toString() else "local_voice_note",
+                messageType = "AUDIO"
+            )
+        }
+    }
 
     fun sendGameInvite() {
         if (_activeChatId.value.isBlank()) return

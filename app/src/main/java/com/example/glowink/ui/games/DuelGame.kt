@@ -70,6 +70,12 @@ fun DuelGameScreen(
         state = state.copy(phase = DuelPhase.ARMED)
     }
 
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            state = state.copy(phase = DuelPhase.INTRO)
+        }
+    }
+
     LaunchedEffect(state.phase, state.round) {
         if (state.phase == DuelPhase.ARMED) {
             armedAtMillis = System.currentTimeMillis()

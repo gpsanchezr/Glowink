@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.glowink.data.User
 import com.example.glowink.ui.avatar.GlowAvatar
+import com.example.glowink.ui.components.GlowPrimaryButton
+import com.example.glowink.ui.components.GlowSecondaryButton
 import com.example.glowink.ui.theme.*
 import com.example.glowink.ui.viewmodel.ChatViewModel
 import kotlinx.coroutines.delay
@@ -767,18 +769,15 @@ private fun HeroFeaturedBanner(
                     }
                 }
 
-                Button(
+                GlowPrimaryButton(
+                    text = "▶ JUGAR AHORA",
                     onClick = { onPlayClick(currentGame) },
-                    colors = ButtonDefaults.buttonColors(containerColor = currentGame.accentColor),
+                    containerColor = currentGame.accentColor,
+                    contentColor = Color.Black,
                     shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
-                    modifier = Modifier.height(36.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("▶  JUGAR AHORA", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 11.5.sp)
-                        Icon(Icons.Default.KeyboardArrowRight, null, tint = Color.Black, modifier = Modifier.size(15.dp))
-                    }
-                }
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                    fontSize = 11.5.sp
+                )
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -986,18 +985,15 @@ private fun TournamentPromotionBanner(onClick: () -> Unit) {
                 }
             }
 
-            Button(
+            GlowPrimaryButton(
+                text = "VER TORNEOS",
                 onClick = onClick,
-                colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                containerColor = ElectricCyan,
+                contentColor = Color.Black,
                 shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                modifier = Modifier.height(36.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("VER TORNEOS", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Black)
-                    Icon(Icons.Default.KeyboardArrowRight, null, tint = Color.Black, modifier = Modifier.size(14.dp))
-                }
-            }
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                fontSize = 11.sp
+            )
         }
     }
 }
@@ -1146,14 +1142,16 @@ private fun GameDetailDialog(
         containerColor = Color(0xFF1B1233),
         shape = RoundedCornerShape(28.dp),
         confirmButton = {
-            Button(
+            GlowPrimaryButton(
+                text = "▶ JUGAR AHORA",
                 onClick = onPlay,
-                colors = ButtonDefaults.buttonColors(containerColor = game.accentColor),
+                containerColor = game.accentColor,
+                contentColor = Color.Black,
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth().height(46.dp)
-            ) {
-                Text("▶  JUGAR AHORA", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 14.sp)
-            }
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                fontSize = 14.sp
+            )
         },
         dismissButton = {
             Row(

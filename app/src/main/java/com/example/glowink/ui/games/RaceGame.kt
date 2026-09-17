@@ -147,6 +147,12 @@ fun RaceGameScreen(
         com.example.glowink.util.GlowSoundManager.playVictory(context)
     }
 
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            state = state.copy(rolling = false)
+        }
+    }
+
     LaunchedEffect(state.rolling) {
         if (state.rolling) {
             com.example.glowink.util.GlowSoundManager.playGameAction(context)

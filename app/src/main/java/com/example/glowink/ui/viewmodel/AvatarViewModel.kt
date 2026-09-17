@@ -54,45 +54,45 @@ class AvatarViewModel : ViewModel() {
     // Catálogo estático de prendas y estilos (Femenino + Masculino)
     val catalog: List<AvatarItem> = listOf(
         // --- PEINADOS (HAIR) ---
-        AvatarItem("hair_fem_ondas", AvatarCategory.HAIR, "Ondas Cian-Rosa", R.drawable.hair_fem_ondas, CurrencyType.FREE),
-        AvatarItem("hair_fem_trenzas", AvatarCategory.HAIR, "Trenzas Tribales", R.drawable.hair_fem_trenzas, CurrencyType.FREE),
-        AvatarItem("hair_fem_asimetrico", AvatarCategory.HAIR, "Corte Asimétrico", R.drawable.hair_fem_asimetrico, CurrencyType.FREE),
-        AvatarItem("hair_fem_liso", AvatarCategory.HAIR, "Liso Largo", R.drawable.hair_fem_liso, CurrencyType.GLOWCOINS, 100),
-        AvatarItem("hair_fem_coleta", AvatarCategory.HAIR, "Coleta Alta", R.drawable.hair_fem_coleta, CurrencyType.GLOWCOINS, 150),
-        AvatarItem("hair_fem_mediano", AvatarCategory.HAIR, "Corte Bob", R.drawable.hair_fem_mediano, CurrencyType.FREE),
-        AvatarItem("hair_fem_2coleta", AvatarCategory.HAIR, "Ondas Dobles", R.drawable.hair_fem_2coleta, CurrencyType.GEMS, 8),
-        AvatarItem("hair_masc_1", AvatarCategory.HAIR, "Mohawk Estilizado", R.drawable.hair_masc_1, CurrencyType.GLOWCOINS, 200),
-        AvatarItem("hair_masc_2", AvatarCategory.HAIR, "Rizos Sueltos", R.drawable.hair_masc_2, CurrencyType.FREE),
-        AvatarItem("hair_masc_3", AvatarCategory.HAIR, "Rapado Cyber", R.drawable.hair_masc_3, CurrencyType.GLOWCOINS, 120),
-        AvatarItem("hair_masc_4", AvatarCategory.HAIR, "Corte Táctico", R.drawable.hair_masc_4, CurrencyType.GEMS, 5),
+        AvatarItem("hair_fem_ondas", AvatarCategory.HAIR, "Ondas Cian-Rosa", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("hair_fem_trenzas", AvatarCategory.HAIR, "Trenzas Tribales", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("hair_fem_asimetrico", AvatarCategory.HAIR, "Corte Asimétrico", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("hair_fem_liso", AvatarCategory.HAIR, "Liso Largo", R.drawable.ic_launcher_glowink, CurrencyType.GLOWCOINS, 100),
+        AvatarItem("hair_fem_coleta", AvatarCategory.HAIR, "Coleta Alta", R.drawable.ic_launcher_glowink, CurrencyType.GLOWCOINS, 150),
+        AvatarItem("hair_fem_mediano", AvatarCategory.HAIR, "Corte Bob", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("hair_fem_2coleta", AvatarCategory.HAIR, "Ondas Dobles", R.drawable.ic_launcher_glowink, CurrencyType.GEMS, 8),
+        AvatarItem("hair_masc_1", AvatarCategory.HAIR, "Mohawk Estilizado", R.drawable.ic_launcher_glowink, CurrencyType.GLOWCOINS, 200),
+        AvatarItem("hair_masc_2", AvatarCategory.HAIR, "Rizos Sueltos", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("hair_masc_3", AvatarCategory.HAIR, "Rapado Cyber", R.drawable.ic_launcher_glowink, CurrencyType.GLOWCOINS, 120),
+        AvatarItem("hair_masc_4", AvatarCategory.HAIR, "Corte Táctico", R.drawable.ic_launcher_glowink, CurrencyType.GEMS, 5),
 
         // --- ROPA SUPERIOR (TOP) ---
-        AvatarItem("ropa_1_fem", AvatarCategory.TOP, "Conjunto Cyber 1", R.drawable.ropa_1_fem, CurrencyType.FREE),
-        AvatarItem("ropa_2_fem", AvatarCategory.TOP, "Chaqueta Holo 2", R.drawable.ropa_2_fem, CurrencyType.GLOWCOINS, 120),
-        AvatarItem("ropa_3_fem", AvatarCategory.TOP, "Top Neón 3", R.drawable.ropa_3_fem, CurrencyType.FREE),
-        AvatarItem("ropa_4_fem", AvatarCategory.TOP, "Armadura Ciberpunk 4", R.drawable.ropa_4_fem, CurrencyType.GEMS, 10),
-        AvatarItem("ropa_1_masc", AvatarCategory.TOP, "Chaqueta Titan 1", R.drawable.ropa_1_masc, CurrencyType.FREE),
-        AvatarItem("ropa_2_masc", AvatarCategory.TOP, "Chaleco Neón 2", R.drawable.ropa_2_masc, CurrencyType.GLOWCOINS, 150),
-        AvatarItem("ropa_3_masc", AvatarCategory.TOP, "Overol Cyber 3", R.drawable.ropa_3_masc, CurrencyType.FREE),
+        AvatarItem("ropa_1_fem", AvatarCategory.TOP, "Conjunto Cyber 1", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("ropa_2_fem", AvatarCategory.TOP, "Chaqueta Holo 2", R.drawable.ic_launcher_glowink, CurrencyType.GLOWCOINS, 120),
+        AvatarItem("ropa_3_fem", AvatarCategory.TOP, "Top Neón 3", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("ropa_4_fem", AvatarCategory.TOP, "Armadura Ciberpunk 4", R.drawable.ic_launcher_glowink, CurrencyType.GEMS, 10),
+        AvatarItem("ropa_1_masc", AvatarCategory.TOP, "Chaqueta Titan 1", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("ropa_2_masc", AvatarCategory.TOP, "Chaleco Neón 2", R.drawable.ic_launcher_glowink, CurrencyType.GLOWCOINS, 150),
+        AvatarItem("ropa_3_masc", AvatarCategory.TOP, "Overol Cyber 3", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
 
         // --- PANTALONES (BOTTOM) ---
-        AvatarItem("bottom_1", AvatarCategory.BOTTOM, "Pantalón Ajustado", R.drawable.ropa_1_fem, CurrencyType.FREE),
-        AvatarItem("bottom_2", AvatarCategory.BOTTOM, "Falda Holo Neón", R.drawable.ropa_3_fem, CurrencyType.GLOWCOINS, 80),
-        AvatarItem("bottom_3", AvatarCategory.BOTTOM, "Pantalón Táctico", R.drawable.ropa_2_masc, CurrencyType.GEMS, 5),
+        AvatarItem("bottom_1", AvatarCategory.BOTTOM, "Pantalón Ajustado", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("bottom_2", AvatarCategory.BOTTOM, "Falda Holo Neón", R.drawable.ic_launcher_glowink, CurrencyType.GLOWCOINS, 80),
+        AvatarItem("bottom_3", AvatarCategory.BOTTOM, "Pantalón Táctico", R.drawable.ic_launcher_glowink, CurrencyType.GEMS, 5),
 
         // --- CALZADO (SHOES) ---
-        AvatarItem("shoes_1", AvatarCategory.SHOES, "Botas Cyber", R.drawable.botas_fem_1, CurrencyType.FREE),
-        AvatarItem("shoes_2", AvatarCategory.SHOES, "Tenis Glow", R.drawable.tenis_1_fem, CurrencyType.GLOWCOINS, 90),
+        AvatarItem("shoes_1", AvatarCategory.SHOES, "Botas Cyber", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("shoes_2", AvatarCategory.SHOES, "Tenis Glow", R.drawable.ic_launcher_glowink, CurrencyType.GLOWCOINS, 90),
 
         // --- CUERPO (BODY) ---
-        AvatarItem("body_fem_base", AvatarCategory.BODY, "Cuerpo Femenino", R.drawable.avatar_fem_base, CurrencyType.FREE),
-        AvatarItem("body_masc_base", AvatarCategory.BODY, "Cuerpo Masculino", R.drawable.avatar_masc_base, CurrencyType.FREE),
-        AvatarItem("body_fem_maniqui", AvatarCategory.BODY, "Maniquí Cyber", R.drawable.avatar_base_fem_maniqui, CurrencyType.GLOWCOINS, 150),
-        AvatarItem("body_masc_maniqui", AvatarCategory.BODY, "Maniquí Titan", R.drawable.avatar_base_masc_maniqui, CurrencyType.GEMS, 5),
+        AvatarItem("body_fem_base", AvatarCategory.BODY, "Cuerpo Femenino", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("body_masc_base", AvatarCategory.BODY, "Cuerpo Masculino", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("body_fem_maniqui", AvatarCategory.BODY, "Maniquí Cyber", R.drawable.ic_launcher_glowink, CurrencyType.GLOWCOINS, 150),
+        AvatarItem("body_masc_maniqui", AvatarCategory.BODY, "Maniquí Titan", R.drawable.ic_launcher_glowink, CurrencyType.GEMS, 5),
 
         // --- ROSTRO (FACE) ---
-        AvatarItem("face_1", AvatarCategory.FACE, "Rostro Neón", R.drawable.avatar_fem_base, CurrencyType.FREE),
-        AvatarItem("face_2", AvatarCategory.FACE, "Maquillaje Cyber", R.drawable.avatar_fem_base, CurrencyType.GLOWCOINS, 50),
+        AvatarItem("face_1", AvatarCategory.FACE, "Rostro Neón", R.drawable.ic_launcher_glowink, CurrencyType.FREE),
+        AvatarItem("face_2", AvatarCategory.FACE, "Maquillaje Cyber", R.drawable.ic_launcher_glowink, CurrencyType.GLOWCOINS, 50),
 
         // --- ACCESORIOS (ACCESSORY) ---
         AvatarItem("acc_1", AvatarCategory.ACCESSORY, "Visor Holo", R.drawable.ic_launcher_glowink, CurrencyType.FREE),

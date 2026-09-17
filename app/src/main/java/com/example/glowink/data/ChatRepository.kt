@@ -138,10 +138,28 @@ class ChatRepository {
             }
     }
 
-    fun sendMessage(chatId: String, text: String, gameId: String? = null, auraReaction: String? = null) {
+    fun sendMessage(
+        chatId: String,
+        text: String,
+        gameId: String? = null,
+        auraReaction: String? = null,
+        imageUrl: String? = null,
+        audioUrl: String? = null,
+        messageType: String = "TEXT"
+    ) {
         val uid = auth.currentUser?.uid ?: return
         val msgId = "msg_${System.currentTimeMillis()}"
-        val msg = Message(id = msgId, senderId = uid, text = text, timestamp = System.currentTimeMillis(), gameId = gameId, auraReactionType = auraReaction)
+        val msg = Message(
+            id = msgId,
+            senderId = uid,
+            text = text,
+            timestamp = System.currentTimeMillis(),
+            gameId = gameId,
+            auraReactionType = auraReaction,
+            imageUrl = imageUrl,
+            audioUrl = audioUrl,
+            messageType = messageType
+        )
         firestore.collection("chats_glowink").document(chatId).collection("messages").document(msgId).set(msg)
     }
 

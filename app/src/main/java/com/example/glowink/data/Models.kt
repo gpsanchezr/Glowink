@@ -98,9 +98,14 @@ data class Message(
     val text: String = "",
     val timestamp: Long = System.currentTimeMillis(),
     val gameId: String? = null,
-    val auraReactionType: String? = null
+    val auraReactionType: String? = null,
+    val imageUrl: String? = null,
+    val audioUrl: String? = null,
+    val messageType: String = "TEXT"
 ) {
-    val isGameInvite: Boolean get() = !gameId.isNullOrBlank()
+    val isGameInvite: Boolean get() = !gameId.isNullOrBlank() || messageType == "GAME_INVITE"
+    val isImage: Boolean get() = !imageUrl.isNullOrBlank() || messageType == "IMAGE" || text.startsWith("IMAGE:") || text.startsWith("🖼️") || text.startsWith("📸")
+    val isAudio: Boolean get() = !audioUrl.isNullOrBlank() || messageType == "AUDIO" || text.startsWith("AUDIO:") || text.startsWith("🎙️")
 }
 
 /**

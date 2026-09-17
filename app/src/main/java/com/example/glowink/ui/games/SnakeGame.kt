@@ -1,7 +1,5 @@
 package com.example.glowink.ui.games
 
-import android.widget.Toast
-import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -15,21 +13,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -38,6 +34,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.glowink.ui.components.GlowPrimaryButton
+import com.example.glowink.ui.components.GlowSecondaryButton
 import com.example.glowink.ui.theme.*
 import com.example.glowink.util.GlowHapticManager
 import com.example.glowink.util.GlowSoundManager
@@ -53,13 +51,127 @@ private const val ROWS = 19
 private enum class Dir(val dx: Int, val dy: Int) { UP(0, -1), DOWN(0, 1), LEFT(-1, 0), RIGHT(1, 0) }
 private data class Cell(val x: Int, val y: Int)
 
+/**
+ * Curva de Dificultad Dinámica que regula velocidad, densidad de obstáculos, objetivos y HP de jefes.
+ */
+data class DifficultyCurve(
+    val baseTickMs: Long,
+    val speedMultiplier: Float,
+    val obstacleCount: Int,
+    val targetItems: Int,
+    val bossHp: Int,
+    val difficultyLabel: String
+) {
+    companion object {
+        fun forWorldAndLevel(worldId: Int, levelId: Int): DifficultyCurve {
+            val isBoss = levelId == 5
+            val rawMs = 180 - (worldId * 16) - (levelId * 10)
+            val tickMs = rawMs.coerceIn(50, 180).toLong()
+            val speedMult = 180f / tickMs.toFloat()
+
+            val obsCount = if (isBoss) (worldId * 2 + 3) else ((levelId - 1) * 2 + (worldId - 1) * 2)
+            val targets = if (isBoss) 8 + worldId * 2 else 4 + levelId + worldId
+            val bossHealth = if (isBoss) 6 + worldId * 3 else 0
+
+            val label = when {
+                worldId >= 4 || (worldId == 3 && levelId >= 4) -> "EXTREMA ⚡"
+                worldId >= 3 || (worldId == 2 && levelId >= 4) -> "ALTA 🔥"
+                worldId >= 2 || levelId >= 3 -> "MEDIA ⚡"
+                else -> "NORMAL 🌱"
+            }
+
+            return DifficultyCurve(
+                baseTickMs = tickMs,
+                speedMultiplier = speedMult,
+                obstacleCount = obsCount,
+                targetItems = targets,
+                bossHp = bossHealth,
+                difficultyLabel = label
+            )
+        }
+    }
+}
+
+/**
+ * Tema de Color Neón Procedural y Rejilla por Nivel.
+ */
+data class SnakeLevelTheme(
+    val snakeHeadColor: Color,
+    val snakeBodyColor: Color,
+    val accentColor: Color,
+    val foodColor: Color,
+    val obstacleColor: Color,
+    val gridLineColor: Color,
+    val bgGradient: List<Color>,
+    val gridStyleName: String
+)
+
+fun getLevelTheme(worldId: Int, levelId: Int): SnakeLevelTheme {
+    return if (levelId == 5) {
+        // NIVEL JEFE: Rojo Fuego Neón / Alerta Volcánica 🌋
+        SnakeLevelTheme(
+            snakeHeadColor = Color(0xFFFFD700), // Oro Imperial
+            snakeBodyColor = Color(0xFFFF2222), // Rojo Fuego Neón
+            accentColor = Color(0xFFFF2222),
+            foodColor = Color(0xFFFF6600), // Naranja Fuego
+            obstacleColor = Color(0xFFFF1100),
+            gridLineColor = Color(0xFFFF2222).copy(alpha = 0.25f),
+            bgGradient = listOf(Color(0xFF3A0000), Color(0xFF1A000A), Color(0xFF070414)),
+            gridStyleName = "Alerta Volcánica 🌋"
+        )
+    } else {
+        when (levelId) {
+            1 -> SnakeLevelTheme(
+                snakeHeadColor = Color.White,
+                snakeBodyColor = Color(0xFF39FF14), // Verde Neón Bioluminiscente
+                accentColor = Color(0xFF39FF14),
+                foodColor = Color(0xFF7FFF00),
+                obstacleColor = Color(0xFF1E824C),
+                gridLineColor = Color(0xFF39FF14).copy(alpha = 0.15f),
+                bgGradient = listOf(Color(0xFF0A290C), Color(0xFF070414)),
+                gridStyleName = "Jardín Esmeralda 🌱"
+            )
+            2 -> SnakeLevelTheme(
+                snakeHeadColor = Color.White,
+                snakeBodyColor = Color(0xFF00E5FF), // Cian Eléctrico Cyber
+                accentColor = Color(0xFF00E5FF),
+                foodColor = Color(0xFF00FFFF),
+                obstacleColor = Color(0xFF007799),
+                gridLineColor = Color(0xFF00E5FF).copy(alpha = 0.15f),
+                bgGradient = listOf(Color(0xFF00223E), Color(0xFF070414)),
+                gridStyleName = "Matriz Cyberpunk 🌃"
+            )
+            3 -> SnakeLevelTheme(
+                snakeHeadColor = Color.White,
+                snakeBodyColor = Color(0xFFFF007F), // Fucsia Neón Vibrante
+                accentColor = Color(0xFFFF007F),
+                foodColor = Color(0xFFFF4081),
+                obstacleColor = Color(0xFF99004C),
+                gridLineColor = Color(0xFFFF007F).copy(alpha = 0.15f),
+                bgGradient = listOf(Color(0xFF3A002A), Color(0xFF070414)),
+                gridStyleName = "Fibras Magenta 🌺"
+            )
+            else -> SnakeLevelTheme( // Level 4
+                snakeHeadColor = Color.White,
+                snakeBodyColor = Color(0xFFB026FF), // Violeta/Morado Cósmico
+                accentColor = Color(0xFFB026FF),
+                foodColor = Color(0xFFE040FB),
+                obstacleColor = Color(0xFF550099),
+                gridLineColor = Color(0xFFB026FF).copy(alpha = 0.15f),
+                bgGradient = listOf(Color(0xFF23003A), Color(0xFF070414)),
+                gridStyleName = "Malla Cósmica 🌌"
+            )
+        }
+    }
+}
+
 data class SnakeWorld(
     val id: Int,
     val name: String,
     val icon: String,
     val bossName: String,
     val bossIcon: String,
-    val accentColor: Color,
+    val defaultAccent: Color,
     val gemType: String,
     val bgGradient: List<Color>
 )
@@ -91,11 +203,28 @@ private data class SnakeState(
 
 private fun generateObstacles(worldId: Int, levelId: Int): List<Cell> {
     val obstacles = mutableListOf<Cell>()
-    val count = (levelId - 1) * 2
+    val curve = DifficultyCurve.forWorldAndLevel(worldId, levelId)
+    val count = curve.obstacleCount
+
     for (i in 0 until count) {
-        val ox = (i * 3 + 2) % (COLS - 2) + 1
-        val oy = (i * 4 + 3) % (ROWS - 4) + 2
-        obstacles.add(Cell(ox, oy))
+        val ox = when (levelId) {
+            1 -> (i * 3 + 2) % (COLS - 2) + 1
+            2 -> (i * 2 + 1) % (COLS - 2) + 1
+            3 -> (i * 4 + 3) % (COLS - 2) + 1
+            4 -> (i * 3 + 1) % (COLS - 2) + 1
+            else -> (i * 2 + 2) % (COLS - 2) + 1 // Jefe
+        }
+        val oy = when (levelId) {
+            1 -> (i * 4 + 3) % (ROWS - 4) + 2
+            2 -> (i * 3 + 2) % (ROWS - 4) + 2
+            3 -> (i * 2 + 4) % (ROWS - 4) + 2
+            4 -> (i * 4 + 1) % (ROWS - 4) + 2
+            else -> (i * 3 + 3) % (ROWS - 4) + 2 // Jefe
+        }
+        val c = Cell(ox, oy)
+        if (c.x != COLS / 2 && c.y != ROWS / 2) {
+            obstacles.add(c)
+        }
     }
     return obstacles
 }
@@ -165,8 +294,8 @@ private fun advanceSnake(state: SnakeState, requestedDir: Dir): SnakeState {
 }
 
 /**
- * Pantalla principal del minijuego "Culebra Glow" con Mapa de Mundos, Niveles y Jefes.
- * Corregida con persistencia de nivel desbloqueado (rememberSaveable), botones formateados y Canvas rico de Bosque Neón.
+ * Pantalla principal de "Culebra Glow" con Selección de Mundos, Niveles, Variedad Neón Procedural
+ * y Aislamiento total de bucles de juego para liberación de memoria al salir.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -188,6 +317,14 @@ fun SnakeGameScreen(
     var lastFrameTime by remember { mutableLongStateOf(0L) }
 
     val timeMillis = remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    // Limpieza al desmontar el componente (Prevención de fugas de memoria y mezcla de estados)
+    DisposableEffect(Unit) {
+        onDispose {
+            isPlaying = false
+        }
+    }
+
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
             timeMillis.longValue = System.currentTimeMillis()
@@ -196,18 +333,21 @@ fun SnakeGameScreen(
     }
 
     val currentWorld = SNAKE_WORLDS.find { it.id == currentWorldId } ?: SNAKE_WORLDS.first()
+    val levelTheme = getLevelTheme(currentWorldId, currentLevelId)
+    val difficulty = DifficultyCurve.forWorldAndLevel(currentWorldId, currentLevelId)
 
     fun startLevel(worldId: Int, levelId: Int) {
         currentWorldId = worldId
         currentLevelId = levelId
+        val diff = DifficultyCurve.forWorldAndLevel(worldId, levelId)
         val obstacles = generateObstacles(worldId, levelId)
         val isBoss = levelId == 5
         state = SnakeState(
             worldId = worldId,
             levelId = levelId,
             obstacles = obstacles,
-            targetItems = if (isBoss) 8 else 4 + levelId,
-            bossHp = if (isBoss) 8 else 0,
+            targetItems = diff.targetItems,
+            bossHp = if (isBoss) diff.bossHp else 0,
             started = true
         )
         pendingDir = Dir.RIGHT
@@ -215,41 +355,46 @@ fun SnakeGameScreen(
         isPlaying = true
     }
 
-    // Loop principal del juego cuando se está jugando (60 FPS Canvas compatible)
+    fun exitToMenu() {
+        isPlaying = false
+        onExit()
+    }
+
+    // Loop principal del juego
     LaunchedEffect(isPlaying, state.started, state.gameOver, state.victory) {
         if (!isPlaying || !state.started || state.gameOver || state.victory) return@LaunchedEffect
-        
+
         var lastScore = state.score
         var accumulator = 0f
+        lastFrameTime = 0L
 
-        while (isActive && !state.gameOver && !state.victory) {
+        while (isActive && isPlaying && !state.gameOver && !state.victory) {
             withFrameMillis { time ->
                 if (lastFrameTime == 0L) lastFrameTime = time
                 val delta = (time - lastFrameTime) / 1000f
                 lastFrameTime = time
 
-                val tickDuration = (0.19f - (currentLevelId * 0.014f)).coerceAtLeast(0.1f)
+                val tickDuration = (difficulty.baseTickMs / 1000f)
                 accumulator += delta
 
                 if (accumulator >= tickDuration) {
                     accumulator -= tickDuration
                     state = advanceSnake(state, pendingDir)
-                    
+
                     if (state.score > lastScore) {
                         GlowSoundManager.playGameAction(context)
                         GlowHapticManager.vibrateImpact(context)
                         lastScore = state.score
                     }
-                    
+
                     if (state.gameOver) {
                         GlowSoundManager.playVictory(context)
                         GlowHapticManager.vibrateError(context)
                     }
-                    
+
                     if (state.victory) {
                         GlowSoundManager.playVictory(context)
                         GlowHapticManager.vibrateSuccess(context)
-                        // Desbloqueo progresivo guardado
                         if (currentLevelId < 5) {
                             unlockedLevelId = maxOf(unlockedLevelId, currentLevelId + 1)
                         } else {
@@ -267,7 +412,7 @@ fun SnakeGameScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Brush.verticalGradient(currentWorld.bgGradient))
+                .background(Brush.verticalGradient(levelTheme.bgGradient))
         ) {
             if (!isPlaying) {
                 // VISTA DE SELECTOR DE MUNDOS Y NIVELES
@@ -278,10 +423,10 @@ fun SnakeGameScreen(
                     unlockedLevelId = unlockedLevelId,
                     onSelectWorld = { currentWorldId = it },
                     onStartLevel = { levelId -> startLevel(currentWorldId, levelId) },
-                    onExit = onExit
+                    onExit = { exitToMenu() }
                 )
             } else {
-                // VISTA DE TABLERO DE JUEGO (GAMEPLAY CON CANVAS RICO)
+                // VISTA DE TABLERO DE JUEGO (GAMEPLAY CON CANVAS PROCEDURAL)
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -295,7 +440,7 @@ fun SnakeGameScreen(
                     ) {
                         Text(
                             text = "← Volver",
-                            color = ElectricCyan,
+                            color = levelTheme.accentColor,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier
@@ -311,8 +456,8 @@ fun SnakeGameScreen(
                                 fontSize = 16.sp
                             )
                             Text(
-                                text = if (currentLevelId == 5) "👹 JEFE: ${currentWorld.bossName}" else "Nivel $currentLevelId / 5",
-                                color = currentWorld.accentColor,
+                                text = if (currentLevelId == 5) "👹 JEFE: ${currentWorld.bossName}" else "Nivel $currentLevelId - ${levelTheme.gridStyleName}",
+                                color = levelTheme.accentColor,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -325,21 +470,42 @@ fun SnakeGameScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Badges de Dificultad y Velocidad
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Text(
+                            text = "Dificultad: ${difficulty.difficultyLabel}",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Velocidad: ${"%.1f".format(difficulty.speedMultiplier)}x",
+                            color = ElectricCyan,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     // Indicador de Objetivo o HP de Jefe
                     if (currentLevelId == 5) {
-                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("👹 ${currentWorld.bossName}", color = Color.Red, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                Text("HP: ${state.bossHp}/8", color = Color.White, fontSize = 12.sp)
+                                Text("HP: ${state.bossHp}/${difficulty.bossHp}", color = Color.White, fontSize = 12.sp)
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             LinearProgressIndicator(
-                                progress = { (state.bossHp / 8f).coerceIn(0f, 1f) },
+                                progress = { if (difficulty.bossHp > 0) (state.bossHp.toFloat() / difficulty.bossHp.toFloat()).coerceIn(0f, 1f) else 0f },
                                 modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
                                 color = Color.Red,
                                 trackColor = Color.White.copy(alpha = 0.2f)
@@ -347,12 +513,12 @@ fun SnakeGameScreen(
                         }
                     } else {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "Manzanas Neón: ${state.itemsEaten} / ${state.targetItems}",
-                                color = ElectricCyan,
+                                text = "Gemas Eaten: ${state.itemsEaten} / ${state.targetItems}",
+                                color = levelTheme.accentColor,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -361,15 +527,16 @@ fun SnakeGameScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // Tablero de Juego (Canvas Bioluminiscente de Bosque Neón)
+                    // Tablero de Juego (Canvas Ailado Bioluminiscente)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f, fill = false)
                             .aspectRatio(COLS / ROWS.toFloat())
                             .clip(RoundedCornerShape(16.dp))
+                            .clipToBounds()
                             .background(Color(0xFF070414))
-                            .border(1.5.dp, currentWorld.accentColor.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
+                            .border(1.5.dp, levelTheme.accentColor.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
                             .pointerInput(Unit) {
                                 var dx = 0f
                                 var dy = 0f
@@ -390,138 +557,106 @@ fun SnakeGameScreen(
                                 )
                             }
                     ) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
+                        Canvas(modifier = Modifier.fillMaxSize().clipToBounds()) {
                             val cw = size.width / COLS
                             val ch = size.height / ROWS
 
-                            // 1. Rejilla Neón de Fondo (20% Alpha)
+                            // 1. Rejilla Neón Procedural del Nivel
+                            val gridAlpha = if (currentLevelId == 5) 0.28f else 0.14f
                             for (i in 0..COLS) {
-                                drawLine(currentWorld.accentColor.copy(alpha = 0.12f), Offset(i * cw, 0f), Offset(i * cw, size.height), strokeWidth = 1.5f)
+                                drawLine(
+                                    color = levelTheme.gridLineColor.copy(alpha = gridAlpha),
+                                    start = Offset(i * cw, 0f),
+                                    end = Offset(i * cw, size.height),
+                                    strokeWidth = 1.5f
+                                )
                             }
                             for (j in 0..ROWS) {
-                                drawLine(currentWorld.accentColor.copy(alpha = 0.12f), Offset(0f, j * ch), Offset(size.width, j * ch), strokeWidth = 1.5f)
+                                drawLine(
+                                    color = levelTheme.gridLineColor.copy(alpha = gridAlpha),
+                                    start = Offset(0f, j * ch),
+                                    end = Offset(size.width, j * ch),
+                                    strokeWidth = 1.5f
+                                )
                             }
 
-                            // 2. RENDERIZADO DE ELEMENTOS DEL MUNDO 1 (BOSQUE NEÓN) O MUNDO 2 (ABISMO GLOW)
-                            if (currentWorldId == 1) {
-                                // Árboles bioluminiscentes
-                                val treeCells = listOf(Cell(2, 3), Cell(10, 4), Cell(1, 12), Cell(11, 14), Cell(4, 16))
-                                treeCells.forEach { tree ->
-                                    val center = Offset(tree.x * cw + cw / 2, tree.y * ch + ch / 2)
-                                    val radius = cw * 0.45f
-                                    drawCircle(color = Color(0xFF0C240A), radius = radius, center = center)
-                                    drawCircle(color = NeonLime, radius = radius, center = center, style = Stroke(width = 3.5f))
-                                    drawCircle(color = NeonLime.copy(alpha = 0.35f), radius = radius * 1.3f, center = center, style = Stroke(width = 6f))
-                                }
-
-                                // Hongos neón magenta
-                                val mushroomCells = listOf(Cell(8, 2), Cell(3, 8), Cell(9, 10), Cell(2, 17))
-                                mushroomCells.forEach { mush ->
-                                    val center = Offset(mush.x * cw + cw / 2, mush.y * ch + ch / 2)
-                                    val capRadius = cw * 0.4f
-                                    drawRect(color = ElectricCyan, topLeft = Offset(center.x - 3f, center.y), size = Size(6f, capRadius))
-                                    drawArc(color = Color(0xFFFF007F), startAngle = 180f, sweepAngle = 180f, useCenter = true, topLeft = Offset(center.x - capRadius, center.y - capRadius), size = Size(capRadius * 2f, capRadius * 2f))
-                                    drawCircle(color = Color.White, radius = 2.5f, center = Offset(center.x - capRadius * 0.4f, center.y - capRadius * 0.4f))
-                                    drawCircle(color = Color.White, radius = 2.5f, center = Offset(center.x + capRadius * 0.4f, center.y - capRadius * 0.4f))
-                                }
-
-                                // Luciérnagas Titilantes
-                                val fireflyCells = listOf(Cell(1, 1), Cell(6, 3), Cell(11, 7), Cell(3, 11), Cell(8, 15))
-                                fireflyCells.forEach { ff ->
-                                    val center = Offset(ff.x * cw + cw / 2, ff.y * ch + ch / 2)
-                                    val seed = ff.hashCode()
-                                    val flickerAlpha = 0.35f + 0.65f * abs(sin((timeMillis.longValue + seed) / 180f))
-                                    drawCircle(color = Color(0xFFFFD24C).copy(alpha = 0.4f * flickerAlpha), radius = 10f, center = center)
-                                    drawCircle(color = Color(0xFFFFFFB0).copy(alpha = flickerAlpha), radius = 4f, center = center)
-                                }
-                            } else if (currentWorldId == 2) {
-                                // MUNDO 2: ABISMO GLOW (Corales, Ruinas, Medusas y Burbujas - FASE 8)
-                                val coralCells = listOf(Cell(2, 4), Cell(10, 3), Cell(1, 13), Cell(11, 12))
-                                coralCells.forEach { coral ->
-                                    val center = Offset(coral.x * cw + cw / 2, coral.y * ch + ch / 2)
-                                    val radius = cw * 0.42f
-                                    drawCircle(color = Color(0xFF003D66), radius = radius, center = center)
-                                    drawCircle(color = ElectricCyan.copy(alpha = 0.35f), radius = radius * 1.3f, center = center, style = Stroke(width = 5f))
-                                    drawCircle(color = ElectricCyan, radius = radius, center = center, style = Stroke(width = 3f))
-                                }
-
-                                val ruinCells = listOf(Cell(8, 3), Cell(3, 15))
-                                ruinCells.forEach { ruin ->
-                                    val topLeft = Offset(ruin.x * cw + cw * 0.1f, ruin.y * ch + ch * 0.1f)
-                                    val boxSize = Size(cw * 0.8f, ch * 0.8f)
-                                    drawRoundRect(color = Color(0xFF3B2E0B), topLeft = topLeft, size = boxSize, cornerRadius = CornerRadius(8f, 8f))
-                                    drawRoundRect(color = Color(0xFFFFD700), topLeft = topLeft, size = boxSize, cornerRadius = CornerRadius(8f, 8f), style = Stroke(width = 3f))
-                                }
-
-                                // Medusas Rosadas Flotantes con Tentáculos Dinámicos
-                                val jellyfishCells = listOf(Cell(5, 2), Cell(2, 9), Cell(9, 11), Cell(4, 16))
-                                jellyfishCells.forEach { jelly ->
-                                    val seed = jelly.hashCode()
-                                    val swayX = sin((timeMillis.longValue + seed) / 300f) * (cw * 0.2f)
-                                    val center = Offset(jelly.x * cw + cw / 2 + swayX, jelly.y * ch + ch / 2)
-                                    val capRadius = cw * 0.38f
-
-                                    // Sombrero rosa
-                                    drawArc(
-                                        color = Color(0xFFFF007F).copy(alpha = 0.85f),
-                                        startAngle = 180f,
-                                        sweepAngle = 180f,
-                                        useCenter = true,
-                                        topLeft = Offset(center.x - capRadius, center.y - capRadius),
-                                        size = Size(capRadius * 2f, capRadius * 2f)
-                                    )
-
-                                    // Tentáculos oscilando
-                                    for (t in -2..2) {
-                                        val tentacleX = center.x + (t * (cw * 0.12f))
-                                        val tentacleSway = sin((timeMillis.longValue + seed + t * 50) / 200f) * 6f
-                                        drawLine(
-                                            color = Color(0xFFFF4FD8).copy(alpha = 0.75f),
-                                            start = Offset(tentacleX, center.y),
-                                            end = Offset(tentacleX + tentacleSway, center.y + ch * 0.4f),
-                                            strokeWidth = 2f
-                                        )
+                            // 2. Elementos Decorativos Dinámicos de Fondo por Nivel
+                            when (currentLevelId) {
+                                1 -> {
+                                    // Bosque Neón Bioluminiscente
+                                    val treeCells = listOf(Cell(2, 3), Cell(10, 4), Cell(1, 12), Cell(11, 14))
+                                    treeCells.forEach { tree ->
+                                        val center = Offset(tree.x * cw + cw / 2, tree.y * ch + ch / 2)
+                                        val radius = cw * 0.42f
+                                        drawCircle(color = Color(0xFF0C240A), radius = radius, center = center)
+                                        drawCircle(color = levelTheme.accentColor, radius = radius, center = center, style = Stroke(width = 3f))
                                     }
                                 }
-
-                                // Burbujas Submarinas Ascendentes
-                                val bubbleCells = listOf(Cell(1, 5), Cell(6, 7), Cell(11, 2), Cell(3, 14), Cell(8, 17))
-                                bubbleCells.forEach { bb ->
-                                    val seed = bb.hashCode()
-                                    val riseY = (bb.y * ch - ((timeMillis.longValue / 15) + seed) % (ch * 6f) + (ch * 6f)) % (ch * 6f)
-                                    val bubbleCenter = Offset(bb.x * cw + cw / 2 + sin((riseY + seed) / 30f) * 4f, riseY)
-                                    drawCircle(
-                                        color = Color(0xAA80F0FF),
-                                        radius = 5f,
-                                        center = bubbleCenter,
-                                        style = Stroke(width = 1.5f)
-                                    )
+                                2 -> {
+                                    // Nodos de Energía Cyber
+                                    val nodeCells = listOf(Cell(3, 4), Cell(9, 3), Cell(2, 14), Cell(10, 15))
+                                    nodeCells.forEach { node ->
+                                        val center = Offset(node.x * cw + cw / 2, node.y * ch + ch / 2)
+                                        val boxSize = Size(cw * 0.7f, ch * 0.7f)
+                                        drawRect(color = Color(0xFF00334E), topLeft = Offset(center.x - boxSize.width / 2, center.y - boxSize.height / 2), size = boxSize)
+                                        drawRect(color = ElectricCyan, topLeft = Offset(center.x - boxSize.width / 2, center.y - boxSize.height / 2), size = boxSize, style = Stroke(width = 2.5f))
+                                    }
+                                }
+                                3 -> {
+                                    // Fibras Magenta Flotantes
+                                    val fiberCells = listOf(Cell(4, 2), Cell(8, 5), Cell(2, 10), Cell(9, 16))
+                                    fiberCells.forEach { fiber ->
+                                        val seed = fiber.hashCode()
+                                        val pulse = abs(sin((timeMillis.longValue + seed) / 250f))
+                                        val center = Offset(fiber.x * cw + cw / 2, fiber.y * ch + ch / 2)
+                                        drawCircle(color = levelTheme.accentColor.copy(alpha = 0.3f * pulse), radius = cw * 0.5f, center = center)
+                                    }
+                                }
+                                4 -> {
+                                    // Nebulosa Cósmica Titilante
+                                    val starCells = listOf(Cell(1, 2), Cell(11, 4), Cell(3, 11), Cell(10, 16))
+                                    starCells.forEach { star ->
+                                        val seed = star.hashCode()
+                                        val flickerAlpha = 0.3f + 0.7f * abs(sin((timeMillis.longValue + seed) / 180f))
+                                        val center = Offset(star.x * cw + cw / 2, star.y * ch + ch / 2)
+                                        drawCircle(color = levelTheme.accentColor.copy(alpha = flickerAlpha), radius = 5f, center = center)
+                                    }
+                                }
+                                5 -> {
+                                    // Nivel Jefe: Grietas de Lava y Alerta Volcánica
+                                    val lavaCells = listOf(Cell(1, 1), Cell(11, 1), Cell(1, 17), Cell(11, 17), Cell(6, 9))
+                                    lavaCells.forEach { lava ->
+                                        val center = Offset(lava.x * cw + cw / 2, lava.y * ch + ch / 2)
+                                        drawCircle(color = Color(0xFFFF2222).copy(alpha = 0.45f), radius = cw * 0.65f, center = center)
+                                        drawCircle(color = Color(0xFFFFD700), radius = cw * 0.25f, center = center)
+                                    }
                                 }
                             }
 
-                            // 3. Dibuja Obstáculos del Nivel
+                            // 3. Obstáculos del Nivel con Color Procedural
                             state.obstacles.forEach { obs ->
                                 val pos = Offset(obs.x * cw + cw * 0.1f, obs.y * ch + ch * 0.1f)
+                                val boxSize = Size(cw * 0.8f, ch * 0.8f)
                                 drawRoundRect(
-                                    color = Color(0xFFFF4444).copy(alpha = 0.8f),
+                                    color = levelTheme.obstacleColor.copy(alpha = 0.85f),
                                     topLeft = pos,
-                                    size = Size(cw * 0.8f, ch * 0.8f),
+                                    size = boxSize,
                                     cornerRadius = CornerRadius(cw * 0.25f)
                                 )
                                 drawRoundRect(
-                                    color = Color(0xFFFF4444),
+                                    color = levelTheme.accentColor,
                                     topLeft = pos,
-                                    size = Size(cw * 0.8f, ch * 0.8f),
+                                    size = boxSize,
                                     cornerRadius = CornerRadius(cw * 0.25f),
                                     style = Stroke(width = 2.5f)
                                 )
                             }
 
-                            // 4. Dibuja Comida / Manzana Neón Bioluminiscente
-                            val foodColor = if (state.isPrism) Color(0xFFFFD24C) else currentWorld.accentColor
+                            // 4. Comida / Gema Neón Bioluminiscente
+                            val foodColor = if (state.isPrism) Color(0xFFFFD24C) else levelTheme.foodColor
                             val foodCenter = Offset(state.food.x * cw + cw / 2, state.food.y * ch + ch / 2)
                             drawCircle(
-                                color = foodColor.copy(alpha = 0.35f),
+                                color = foodColor.copy(alpha = 0.4f),
                                 radius = minOf(cw, ch) * 0.65f,
                                 center = foodCenter
                             )
@@ -536,22 +671,21 @@ fun SnakeGameScreen(
                                 center = foodCenter
                             )
 
-                            // 5. Dibuja Serpiente Neón (Segmentos + Cabeza con Ojos)
+                            // 5. Serpiente Neón (Segmentos + Cabeza con Ojos y Color Procedural)
                             state.snake.forEachIndexed { index, cell ->
                                 val isHead = (index == 0)
                                 val center = Offset(cell.x * cw + cw / 2, cell.y * ch + ch / 2)
                                 val radius = minOf(cw, ch) * 0.42f
 
-                                val segmentColor = if (isHead) Color.White else currentWorld.accentColor
+                                val segmentColor = if (isHead) levelTheme.snakeHeadColor else levelTheme.snakeBodyColor
 
-                                // Halo bioluminiscente
                                 drawCircle(
-                                    color = currentWorld.accentColor.copy(alpha = if (isHead) 0.5f else 0.25f),
+                                    color = levelTheme.accentColor.copy(alpha = if (isHead) 0.55f else 0.25f),
                                     radius = radius * 1.6f,
                                     center = center
                                 )
                                 drawCircle(
-                                    color = currentWorld.accentColor,
+                                    color = levelTheme.accentColor,
                                     radius = radius * 1.2f,
                                     center = center
                                 )
@@ -577,12 +711,12 @@ fun SnakeGameScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.75f)),
+                                    .background(Color.Black.copy(alpha = 0.8f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("💀 ¡PERDISTE!", color = Color.Red, fontWeight = FontWeight.Black, fontSize = 22.sp)
-                                    Text("Puntaje: ${state.score}", color = Color.White, fontSize = 15.sp)
+                                    Text("💀 ¡PERDISTE!", color = Color.Red, fontWeight = FontWeight.Black, fontSize = 24.sp)
+                                    Text("Puntaje: ${state.score}", color = Color.White, fontSize = 16.sp)
                                     Spacer(modifier = Modifier.height(14.dp))
                                     Button(
                                         onClick = { startLevel(currentWorldId, currentLevelId) },
@@ -595,7 +729,7 @@ fun SnakeGameScreen(
                             }
                         }
 
-                        // Superposición de Victoria (Level Complete / Boss Defeated)
+                        // Superposición de Victoria
                         if (state.victory) {
                             Box(
                                 modifier = Modifier
@@ -661,7 +795,7 @@ fun SnakeGameScreen(
 }
 
 /**
- * Pantalla de Selección de Mundos y Niveles para Culebra Glow.
+ * Pantalla de Selección de Mundos y Niveles para Culebra Glow con Curva de Dificultad.
  */
 @Composable
 private fun WorldSelectorScreen(
@@ -710,10 +844,10 @@ private fun WorldSelectorScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(130.dp)
+                .height(135.dp)
                 .clip(RoundedCornerShape(22.dp))
                 .background(Brush.linearGradient(currentWorld.bgGradient))
-                .border(1.5.dp, currentWorld.accentColor, RoundedCornerShape(22.dp))
+                .border(1.5.dp, currentWorld.defaultAccent, RoundedCornerShape(22.dp))
                 .padding(18.dp)
         ) {
             Row(
@@ -724,7 +858,7 @@ private fun WorldSelectorScreen(
                 Column {
                     Text(
                         text = "MUNDO ${currentWorld.id}",
-                        color = currentWorld.accentColor,
+                        color = currentWorld.defaultAccent,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -734,20 +868,22 @@ private fun WorldSelectorScreen(
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Black
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "👹 Jefe: ${currentWorld.bossName}",
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 13.sp
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
-                Text(currentWorld.icon, fontSize = 54.sp)
+                Text(currentWorld.icon, fontSize = 52.sp)
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Fila Horizontal de Mundos
+        // Fila Horizontal de Selección de Mundos
         Text("🌌 Selecciona un Mundo", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(10.dp))
 
@@ -757,18 +893,19 @@ private fun WorldSelectorScreen(
             items(SNAKE_WORLDS) { world ->
                 val isUnlocked = world.id <= unlockedWorldId
                 val isSelected = world.id == selectedWorldId
+                val worldDiff = DifficultyCurve.forWorldAndLevel(world.id, 1)
 
                 Box(
                     modifier = Modifier
-                        .width(130.dp)
-                        .height(85.dp)
+                        .width(140.dp)
+                        .height(90.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(
-                            if (isSelected) world.accentColor.copy(alpha = 0.3f) else Color(0x221E1735)
+                            if (isSelected) world.defaultAccent.copy(alpha = 0.3f) else Color(0x221E1735)
                         )
                         .border(
                             width = if (isSelected) 1.5.dp else 1.dp,
-                            color = if (isSelected) world.accentColor else Color.White.copy(alpha = 0.2f),
+                            color = if (isSelected) world.defaultAccent else Color.White.copy(alpha = 0.2f),
                             shape = RoundedCornerShape(16.dp)
                         )
                         .clickable(enabled = isUnlocked) { onSelectWorld(world.id) }
@@ -792,6 +929,12 @@ private fun WorldSelectorScreen(
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1
                         )
+                        Text(
+                            text = worldDiff.difficultyLabel,
+                            color = world.defaultAccent,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -799,7 +942,7 @@ private fun WorldSelectorScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Grid de Niveles del Mundo Seleccionado
+        // Grid de Niveles con Curva de Dificultad Dinámica
         Text("🎯 Niveles de ${currentWorld.name}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -807,11 +950,13 @@ private fun WorldSelectorScreen(
             (1..5).forEach { levelId ->
                 val isUnlocked = selectedWorldId < unlockedWorldId || (selectedWorldId == unlockedWorldId && levelId <= unlockedLevelId)
                 val isBoss = levelId == 5
+                val curve = DifficultyCurve.forWorldAndLevel(selectedWorldId, levelId)
+                val levelTheme = getLevelTheme(selectedWorldId, levelId)
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(64.dp)
+                        .height(68.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(
                             if (isUnlocked) {
@@ -822,7 +967,7 @@ private fun WorldSelectorScreen(
                         )
                         .border(
                             1.dp,
-                            if (isUnlocked) (if (isBoss) Color(0xFFFF007F) else currentWorld.accentColor) else Color.White.copy(alpha = 0.1f),
+                            if (isUnlocked) levelTheme.accentColor else Color.White.copy(alpha = 0.1f),
                             RoundedCornerShape(16.dp)
                         )
                         .clickable(enabled = isUnlocked) { onStartLevel(levelId) }
@@ -845,34 +990,34 @@ private fun WorldSelectorScreen(
                                 fontWeight = FontWeight.ExtraBold
                             )
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = if (isBoss) "JEFE: ${currentWorld.bossName}" else "Come manzanas y evita obstáculos",
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 11.5.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Column {
+                                Text(
+                                    text = if (isBoss) "JEFE: ${currentWorld.bossName}" else levelTheme.gridStyleName,
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "Velocidad: ${"%.1f".format(curve.speedMultiplier)}x | Obstáculos: ${curve.obstacleCount}",
+                                    color = levelTheme.accentColor,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
 
                         if (isUnlocked) {
-                            Button(
+                            GlowPrimaryButton(
+                                text = "JUGAR",
                                 onClick = { onStartLevel(levelId) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isBoss) Color(0xFFFF007F) else currentWorld.accentColor
-                                ),
+                                containerColor = levelTheme.accentColor,
+                                contentColor = Color.Black,
                                 shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                modifier = Modifier.height(36.dp).defaultMinSize(minWidth = 85.dp)
-                            ) {
-                                Text(
-                                    text = "JUGAR",
-                                    color = Color.Black,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 12.sp,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                fontSize = 12.sp
+                            )
                         } else {
                             Text("🔒", fontSize = 18.sp)
                         }

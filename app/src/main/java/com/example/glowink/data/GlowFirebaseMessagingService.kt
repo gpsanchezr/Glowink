@@ -7,7 +7,7 @@ import com.google.firebase.messaging.RemoteMessage
 
 /**
  * Servicio de Firebase Cloud Messaging (FCM) para recepcionar Notificaciones PUSH
- * de Retos, Desafíos e Invitaciones a Juegos en Glowink.
+ * de Mensajes Nuevos, Retos e Invitaciones a Juegos en Glowink.
  */
 class GlowFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -24,17 +24,32 @@ class GlowFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        val title = message.notification?.title ?: message.data["title"] ?: "⚡ ¡Nuevo Desafío Glowink!"
-        val body = message.notification?.body ?: message.data["body"] ?: "Te han retado a una partida neón."
-        val gameId = message.data["gameId"] ?: "duel_neon"
-        val chatId = message.data["chatId"] ?: ""
 
-        NotificationHelper.showChallengeNotification(
-            context = applicationContext,
-            title = title,
-            body = body,
-            gameId = gameId,
-            chatId = chatId
-        )
+        val type = message.data["type"] ?: "chat_message"
+        val title = message.notification?.title ?: message.data["title"] ?: "⚡ Notificación Glowink"
+        val body = message.notification?.body ?: message.data["body"] ?: "Tienes una nueva interacción neón."
+        val chatId = message.data["chatId"] ?: ""
+        val senderName = message.data["senderName"] ?: "Amigo Glowink"
+        val gameId = message.data["gameId"] ?: "duel_neon"
+
+        when (type) {
+            "game_invite", "challenge" -> {
+                NotificationHelper.showChallengeNotification(
+                    context = applicationContext,
+                    title = if (title != "⚡ Notificación Glowink") title else "🎮 Reto de $senderName",
+                    body = body,
+                    gameId = gameId,
+                    chatId = chatId
+                )
+            }
+            else -> {
+                NotificationHelper.showNewMessageNotification(
+                    context = applicationContext,
+                    senderName = senderName,
+                    messageText = body,
+                    chatId = chatId
+                )
+            }
+        }
     }
 }

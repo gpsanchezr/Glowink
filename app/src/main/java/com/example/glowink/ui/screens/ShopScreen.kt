@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.glowink.ui.components.GlowCard
+import com.example.glowink.ui.components.GlowPrimaryButton
 import com.example.glowink.ui.theme.*
 import com.example.glowink.ui.viewmodel.ChatViewModel
 
@@ -197,14 +199,16 @@ fun ShopCard(item: ShopItem, onBuy: (ShopItem) -> Unit) {
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Button(
+            GlowPrimaryButton(
+                text = "Comprar",
                 onClick = { onBuy(item) },
-                colors = ButtonDefaults.buttonColors(containerColor = UltravioletPurple),
-                modifier = Modifier.fillMaxWidth().height(36.dp),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text("Comprar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = UltravioletPurple,
+                contentColor = Color.White,
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                fontSize = 12.sp
+            )
         }
     }
 }
@@ -222,7 +226,7 @@ fun CurrencySection(items: List<CurrencyPack>, onBuy: (CurrencyPack) -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Text(pack.icon, fontSize = 32.sp)
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
@@ -230,12 +234,15 @@ fun CurrencySection(items: List<CurrencyPack>, onBuy: (CurrencyPack) -> Unit) {
                             Text("Efecto Neón Garantizado", color = OnSurfaceMuted, fontSize = 12.sp)
                         }
                     }
-                    Button(
+                    GlowPrimaryButton(
+                        text = "$${pack.price}",
                         onClick = { onBuy(pack) },
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonLime)
-                    ) {
-                        Text("$${pack.price}", color = Color.Black, fontWeight = FontWeight.Bold)
-                    }
+                        containerColor = NeonLime,
+                        contentColor = Color.Black,
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                        fontSize = 13.sp
+                    )
                 }
             }
         }

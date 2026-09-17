@@ -14,12 +14,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.glowink.ui.theme.*
 
 /**
- * Componentes de Monetización Neón para Glowink.
+ * Componentes de Monetización Neón para Glowink con alineación responsiva corregida.
  */
 
 @Composable
@@ -29,12 +30,20 @@ fun GlowBannerAd(modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .height(60.dp)
             .background(Color(0xFF0F0A21))
-            .border(1.dp, Color.White.copy(alpha = 0.1f)),
+            .border(1.dp, Color.White.copy(alpha = 0.1f))
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Text("PUBLICIDAD NEÓN", fontSize = 9.sp, color = OnSurfaceMuted, letterSpacing = 1.sp)
-            Text("¡Obtén 500 GlowCoins extra hoy! Toca aquí", fontSize = 13.sp, color = ElectricCyan, fontWeight = FontWeight.Bold)
+            Text(
+                "¡Obtén 500 GlowCoins extra hoy! Toca aquí",
+                fontSize = 13.sp,
+                color = ElectricCyan,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -43,33 +52,28 @@ fun GlowBannerAd(modifier: Modifier = Modifier) {
 fun GlowPremiumCard(
     onUpgradeClick: () -> Unit
 ) {
-    GlassContainer(
+    GlowCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         borderBrush = Brush.linearGradient(listOf(Color(0xFFFFD700), Color(0xFFFF8C00))),
-        borderWidth = 2.dp
+        borderWidth = 2.dp,
+        contentPadding = PaddingValues(20.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("💎 GLOW PREMIUM", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Color(0xFFFFD700))
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Sin anuncios • Juegos exclusivos • Skins legendarias",
-                fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = onUpgradeClick,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700)),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("MEJORAR AHORA", color = Color.Black, fontWeight = FontWeight.Black)
-            }
-        }
+        Text("💎 GLOW PREMIUM", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Color(0xFFFFD700))
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "Sin anuncios • Juegos exclusivos • Skins legendarias",
+            fontSize = 12.sp,
+            color = Color.White.copy(alpha = 0.8f),
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        GlowPrimaryButton(
+            text = "MEJORAR AHORA",
+            onClick = onUpgradeClick,
+            containerColor = Color(0xFFFFD700),
+            contentColor = Color.Black
+        )
     }
 }
 
@@ -78,7 +82,7 @@ fun GlowRewardedAdButton(
     onAdComplete: () -> Unit
 ) {
     var showLoading by remember { mutableStateOf(false) }
-    
+
     if (showLoading) {
         AlertDialog(
             onDismissRequest = { },
@@ -92,7 +96,7 @@ fun GlowRewardedAdButton(
                 }
             }
         )
-        
+
         LaunchedEffect(Unit) {
             kotlinx.coroutines.delay(3000)
             showLoading = false
@@ -103,29 +107,44 @@ fun GlowRewardedAdButton(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp)
+            .defaultMinSize(minHeight = 50.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(Brush.horizontalGradient(listOf(NeonLime.copy(alpha = 0.2f), ElectricCyan.copy(alpha = 0.2f))))
             .border(1.dp, NeonLime, RoundedCornerShape(14.dp))
-            .clickable { showLoading = true },
+            .clickable { showLoading = true }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.wrapContentWidth()
+        ) {
             Text("📺", fontSize = 20.sp)
             Spacer(modifier = Modifier.width(10.dp))
-            Text("VER VIDEO PARA 🪙 50 GRATIS", color = NeonLime, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(
+                "VER VIDEO PARA 🪙 50 GRATIS",
+                color = NeonLime,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
 
 @Composable
-fun GameActionButton(text: String, onClick: () -> Unit) {
-    Button(
+fun GameActionButton(
+    text: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    GlowPrimaryButton(
+        text = text,
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-        shape = RoundedCornerShape(50),
-        modifier = Modifier.background(NeonGradientPrimary, RoundedCornerShape(50))
-    ) {
-        Text(text, color = Color.Black, fontWeight = FontWeight.Bold)
-    }
+        modifier = modifier,
+        containerColor = NeonLime,
+        contentColor = Color.Black
+    )
 }

@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import com.example.glowink.data.GameStats
 import com.example.glowink.data.User
 import com.example.glowink.ui.avatar.GlowAvatarFrame
+import com.example.glowink.ui.components.GlowPrimaryButton
+import com.example.glowink.ui.components.GlowSecondaryButton
 import com.example.glowink.ui.theme.*
 import com.example.glowink.ui.viewmodel.ChatViewModel
 
@@ -190,33 +192,32 @@ fun ProfileScreenContent(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Button(
+                        GlowSecondaryButton(
+                            text = "Avatar 🎨",
                             onClick = onEditAvatar,
-                            modifier = Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(18.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF1E1735), Color(0xFF1E1735)))).border(1.dp, ElectricCyan.copy(0.4f), RoundedCornerShape(18.dp)),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
-                        ) {
-                            Text("Personalizar Avatar 🎨", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                        Button(
+                            modifier = Modifier.weight(1f),
+                            borderColor = ElectricCyan,
+                            textColor = Color.White
+                        )
+                        GlowPrimaryButton(
+                            text = "Visor 3D 🧊",
                             onClick = onOpen3DViewer,
-                            modifier = Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(18.dp)).background(Brush.horizontalGradient(listOf(UltravioletPurple, Color(0xFF4A00E0)))),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
-                        ) {
-                            Text("Visor 3D 🧊", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
+                            modifier = Modifier.weight(1f),
+                            containerColor = UltravioletPurple,
+                            contentColor = Color.White
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Button(
+                    GlowSecondaryButton(
+                        text = "CERRAR SESIÓN",
                         onClick = onLogout,
-                        modifier = Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(Color(0xFFFF4444).copy(0.2f), Color(0xFF990000).copy(0.2f)))).border(1.2.dp, Color(0xFFFF4444), RoundedCornerShape(18.dp)),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
-                    ) {
-                        NeonLogoutIcon(color = Color.White)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text("CERRAR SESIÓN", color = Color.White, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                    }
+                        modifier = Modifier.fillMaxWidth(),
+                        borderColor = Color(0xFFFF4444),
+                        textColor = Color(0xFFFF4444),
+                        icon = { NeonLogoutIcon(color = Color(0xFFFF4444)) }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
