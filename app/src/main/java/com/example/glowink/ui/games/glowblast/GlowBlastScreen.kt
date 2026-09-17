@@ -1,5 +1,6 @@
 package com.example.glowink.ui.games.glowblast
 
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,6 +12,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -23,6 +26,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +38,7 @@ import com.example.glowink.ui.components.GlowSecondaryButton
 import com.example.glowink.ui.games.glowblast.model.GameMode
 import com.example.glowink.ui.games.glowblast.model.GlowAvatarConfig
 import com.example.glowink.ui.games.glowblast.model.MapTheme
+import com.example.glowink.ui.games.glowblast.online.MultiplayerViewModel
 import com.example.glowink.ui.games.glowblast.renderer.GlowCharacterCanvas
 import com.example.glowink.ui.games.glowblast.renderer.GlowCharacterPresets
 import com.example.glowink.ui.theme.*
@@ -41,10 +46,10 @@ import com.example.glowink.ui.theme.*
 /**
  * Estado de navegación interna dentro de Glow Blast.
  */
-enum class GlowBlastStep { COVER, SETUP, MULTIPLAYER, CHARACTER, GAME }
+enum class GlowBlastStep { COVER, SETUP, MULTIPLAYER, CHARACTER, GAME, RESULT, SHOP }
 
 /**
- * Pantalla Principal del Minijuego GLOW BLAST con gestión de pasos (Cover, Mode Setup, Multiplayer Lobby, Character Select y Game Arena).
+ * Pantalla Principal del Minijuego GLOW BLAST con gestión de pasos (Cover, Mode Setup, Multiplayer Lobby, Character Select, Game Arena, Results y Shop).
  */
 @Composable
 fun GlowBlastScreen(
@@ -59,6 +64,9 @@ fun GlowBlastScreen(
     var selectedMap by rememberSaveable { mutableStateOf(MapTheme.CIUDAD_NEON) }
     var selectedCharacter by remember { mutableStateOf(GlowCharacterPresets.NEO) }
 
+    var lastMatchVictory by rememberSaveable { mutableStateOf(true) }
+    var lastMatchScore by rememberSaveable { mutableIntStateOf(1250) }
+
     when (currentStep) {
         GlowBlastStep.COVER -> {
             GlowBlastCoverScreen(
@@ -66,7 +74,7 @@ fun GlowBlastScreen(
                 onPlayClick = { currentStep = GlowBlastStep.SETUP },
                 onMultiplayerClick = { currentStep = GlowBlastStep.MULTIPLAYER },
                 onSettingsClick = onSettingsClick,
-                onShopClick = onShopClick
+                onShopClick = { currentStep = GlowBlastStep.SHOP }
             )
         }
         GlowBlastStep.SETUP -> {
@@ -99,7 +107,37 @@ fun GlowBlastScreen(
             GlowBlastGameScreen(
                 mapTheme = selectedMap,
                 selectedCharacter = selectedCharacter,
-                onBack = { currentStep = GlowBlastStep.CHARACTER }
+                onBack = {
+                    lastMatchVictory = false
+                    lastMatchScore = 450
+                    currentStep = GlowBlastStep.RESULT
+                },
+                onMatchOver = { isVictory, finalScore ->
+                    lastMatchVictory = isVictory
+                    lastMatchScore = finalScore
+                    currentStep = GlowBlastStep.RESULT
+                }
+            )
+        }
+        GlowBlastStep.RESULT -> {
+            GlowBlastResultScreen(
+                isVictory = lastMatchVictory,
+                score = lastMatchScore,
+                coinsEarned = if (lastMatchVictory) 350 else 100,
+                xpEarned = if (lastMatchVictory) 120 else 40,
+                selectedCharacter = selectedCharacter,
+                onPlayAgain = { currentStep = GlowBlastStep.GAME },
+                onMenu = { currentStep = GlowBlastStep.COVER },
+                onContinue = onBack
+            )
+        }
+        GlowBlastStep.SHOP -> {
+            GlowBlastShopScreen(
+                currentConfig = selectedCharacter,
+                onAvatarUpdated = { updatedConfig ->
+                    selectedCharacter = updatedConfig
+                },
+                onBack = { currentStep = GlowBlastStep.COVER }
             )
         }
     }
@@ -426,7 +464,7 @@ fun GlowBlastModeScreen(
 }
 
 /**
- * FASE 4: Pantalla Visual de Sala Multijugador (Lobby).
+ * FASE 15: Pantalla Visual y Multijugador Firebase para Sala Multijugador (Lobby).
  */
 @Composable
 fun GlowBlastMultiplayerScreen(
@@ -435,14 +473,34 @@ fun GlowBlastMultiplayerScreen(
     onBack: () -> Unit = {},
     onContinue: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     var playerCount by rememberSaveable { mutableIntStateOf(4) }
+    var onlineRoomCodeInput by remember { mutableStateOf("") }
 
-    val mockPlayers = listOf(
-        Triple("Tú (Líder)", "👑", true),
-        Triple("NeoFire", "🎮", true),
-        Triple("LunaStar", "🎮", true),
-        Triple("Zeta", "🎮", true)
-    )
+    val viewModel = remember { MultiplayerViewModel() }
+    val roomState by viewModel.roomState.collectAsState()
+    val currentRoomId by viewModel.currentRoomId.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { err ->
+            Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+            viewModel.clearError()
+        }
+    }
+
+    val displayPlayers = if (roomState != null && roomState?.players?.isNotEmpty() == true) {
+        roomState!!.players.map { p ->
+            Triple(if (p.isHost) "${p.name} (Líder)" else p.name, if (p.isHost) "👑" else "🎮", p.isReady)
+        }
+    } else {
+        listOf(
+            Triple("Tú (Líder)", "👑", true),
+            Triple("NeoFire", "🎮", true),
+            Triple("LunaStar", "🎮", true),
+            Triple("Zeta", "🎮", true)
+        )
+    }
 
     Scaffold(containerColor = ObsidianBackground) { innerPadding ->
         Box(
@@ -475,22 +533,64 @@ fun GlowBlastMultiplayerScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "MULTIJUGADOR",
+                                text = "MULTIJUGADOR EN LÍNEA",
                                 color = ElectricCyan,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 1.sp
                             )
                             Text(
-                                text = "INVITA A TUS AMIGOS O JUEGA EN LÍNEA",
-                                color = Color.White.copy(alpha = 0.7f),
+                                text = if (currentRoomId != null) "SALA EN LÍNEA: #$currentRoomId" else "SALAS ONLINE CON CLOUD FIRESTORE",
+                                color = if (currentRoomId != null) NeonLime else Color.White.copy(alpha = 0.7f),
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // INPUT Y ACCIONES MULTIJUGADOR FIREBASE
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = onlineRoomCodeInput,
+                            onValueChange = { onlineRoomCodeInput = it },
+                            placeholder = { Text("Código de Sala", color = Color.Gray, fontSize = 12.sp) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = ElectricCyan,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        GlowSecondaryButton(
+                            text = "UNIRSE",
+                            onClick = { viewModel.joinRoom(onlineRoomCodeInput) },
+                            borderColor = ElectricCyan,
+                            textColor = ElectricCyan,
+                            fontSize = 11.5.sp,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                        )
+
+                        GlowSecondaryButton(
+                            text = "CREAR 🔥",
+                            onClick = { viewModel.createRoom(selectedMap, selectedMode, playerCount) },
+                            borderColor = NeonLime,
+                            textColor = NeonLime,
+                            fontSize = 11.5.sp,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -537,7 +637,7 @@ fun GlowBlastMultiplayerScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "SALA DE ESPERA (LOBBY)",
+                            text = "SALA DE ESPERA (LOBBY EN LÍNEA)",
                             color = ElectricCyan,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Black,
@@ -549,7 +649,7 @@ fun GlowBlastMultiplayerScreen(
 
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             (0 until playerCount).forEach { index ->
-                                val playerInfo = mockPlayers.getOrNull(index) ?: Triple("Esperando jugador...", "⏳", false)
+                                val playerInfo = displayPlayers.getOrNull(index) ?: Triple("Esperando jugador...", "⏳", false)
                                 val isLeader = index == 0
 
                                 Box(
@@ -579,13 +679,13 @@ fun GlowBlastMultiplayerScreen(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(if (isLeader) NeonLime.copy(alpha = 0.2f) else Color(0x22FFFFFF))
-                                                .border(1.dp, if (isLeader) NeonLime else Color.White.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                                .background(if (playerInfo.third) NeonLime.copy(alpha = 0.2f) else Color(0x22FFFFFF))
+                                                .border(1.dp, if (playerInfo.third) NeonLime else Color.White.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                                         ) {
                                             Text(
-                                                text = "✓ LISTO",
-                                                color = if (isLeader) NeonLime else ElectricCyan,
+                                                text = if (playerInfo.third) "✓ LISTO" else "⏳ ESPERANDO",
+                                                color = if (playerInfo.third) NeonLime else Color.Gray,
                                                 fontSize = 10.5.sp,
                                                 fontWeight = FontWeight.Black
                                             )
@@ -636,7 +736,10 @@ fun GlowBlastMultiplayerScreen(
 
                 GlowPrimaryButton(
                     text = "SELECCIONAR AVATAR ▶",
-                    onClick = onContinue,
+                    onClick = {
+                        viewModel.startMatch()
+                        onContinue()
+                    },
                     containerColor = ElectricCyan,
                     contentColor = Color.Black,
                     shape = RoundedCornerShape(16.dp),
@@ -675,7 +778,6 @@ fun GlowBlastCharacterScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // BARRA SUPERIOR
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -700,7 +802,6 @@ fun GlowBlastCharacterScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // VISTA PREVIA DEL PERSONAJE PRINCIPAL RENDERIZADO EN CANVAS 2D
                     GlowCard(
                         shape = RoundedCornerShape(28.dp),
                         borderColor = ElectricCyan,
@@ -740,7 +841,6 @@ fun GlowBlastCharacterScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // CARROUSEL / FILA DE SELECCIÓN DE 4 PERSONAJES
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -784,7 +884,6 @@ fun GlowBlastCharacterScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // BOTÓN INFERIOR PRINCIPAL DE INICIAR PARTIDA
                 GlowPrimaryButton(
                     text = "INICIAR PARTIDA ▶",
                     onClick = onStartMatch,

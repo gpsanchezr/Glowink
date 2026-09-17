@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.core.graphics.toColorInt
 import com.example.glowink.ui.games.glowblast.model.GlowAvatarConfig
 
+private val reusableHairPath = Path()
+
 /**
  * Preajustes de Personajes para Glow Blast.
  */
@@ -94,8 +96,6 @@ fun DrawScope.drawGlowCharacter(
     val hairColor = parseColorSafely(config.hairColor, Color(0xFF00F0FF))
     val auraColor = parseColorSafely(config.auraColor, Color(0xFF00F0FF))
     val clothingColor = parseColorSafely(config.clothingColor, Color(0xFF1E1735))
-
-    val bobY = if (isMoving) kotlin.math.sin(walkCycle * 2f) * (h * 0.025f) else 0f
 
     // 1. Sombra / Aura Neón en el Suelo
     val baseCenter = Offset(w * 0.5f, h * 0.88f)
@@ -215,8 +215,9 @@ fun DrawScope.drawGlowCharacter(
         strokeWidth = 3f
     )
 
-    // 5. Cabello Cyberpunk Anclado al Cráneo
-    val hairPath = Path()
+    // 5. Cabello Cyberpunk Anclado al Cráneo (Object Reuse para 60 FPS)
+    val hairPath = reusableHairPath
+    hairPath.reset()
     when (config.hairStyle.uppercase()) {
         "MOHAWK_NEON" -> {
             hairPath.moveTo(w * 0.44f, headTop + 10f)
