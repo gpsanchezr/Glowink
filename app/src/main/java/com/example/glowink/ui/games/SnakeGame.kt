@@ -360,48 +360,39 @@ fun SnakeGameScreen(
         onExit()
     }
 
-    // Loop principal del juego
-    LaunchedEffect(isPlaying, state.started, state.gameOver, state.victory) {
+    // Loop principal del juego con tick rate constante regulado por dificultad
+    LaunchedEffect(isPlaying, state.started, state.gameOver, state.victory, currentWorldId, currentLevelId) {
         if (!isPlaying || !state.started || state.gameOver || state.victory) return@LaunchedEffect
 
         var lastScore = state.score
-        var accumulator = 0f
-        lastFrameTime = 0L
 
         while (isActive && isPlaying && !state.gameOver && !state.victory) {
-            withFrameMillis { time ->
-                if (lastFrameTime == 0L) lastFrameTime = time
-                val delta = (time - lastFrameTime) / 1000f
-                lastFrameTime = time
+            val tickMs = difficulty.baseTickMs.coerceIn(50L, 180L)
+            delay(tickMs)
 
-                val tickDuration = (difficulty.baseTickMs / 1000f)
-                accumulator += delta
+            if (!isPlaying || state.gameOver || state.victory) break
 
-                if (accumulator >= tickDuration) {
-                    accumulator -= tickDuration
-                    state = advanceSnake(state, pendingDir)
+            state = advanceSnake(state, pendingDir)
 
-                    if (state.score > lastScore) {
-                        GlowSoundManager.playGameAction(context)
-                        GlowHapticManager.vibrateImpact(context)
-                        lastScore = state.score
-                    }
+            if (state.score > lastScore) {
+                GlowSoundManager.playGameAction(context)
+                GlowHapticManager.vibrateImpact(context)
+                lastScore = state.score
+            }
 
-                    if (state.gameOver) {
-                        GlowSoundManager.playVictory(context)
-                        GlowHapticManager.vibrateError(context)
-                    }
+            if (state.gameOver) {
+                GlowSoundManager.playVictory(context)
+                GlowHapticManager.vibrateError(context)
+            }
 
-                    if (state.victory) {
-                        GlowSoundManager.playVictory(context)
-                        GlowHapticManager.vibrateSuccess(context)
-                        if (currentLevelId < 5) {
-                            unlockedLevelId = maxOf(unlockedLevelId, currentLevelId + 1)
-                        } else {
-                            unlockedWorldId = maxOf(unlockedWorldId, currentWorldId + 1)
-                            unlockedLevelId = 1
-                        }
-                    }
+            if (state.victory) {
+                GlowSoundManager.playVictory(context)
+                GlowHapticManager.vibrateSuccess(context)
+                if (currentLevelId < 5) {
+                    unlockedLevelId = maxOf(unlockedLevelId, currentLevelId + 1)
+                } else {
+                    unlockedWorldId = maxOf(unlockedWorldId, currentWorldId + 1)
+                    unlockedLevelId = 1
                 }
             }
         }
@@ -538,20 +529,34 @@ fun SnakeGameScreen(
                             .background(Color(0xFF070414))
                             .border(1.5.dp, levelTheme.accentColor.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
                             .pointerInput(Unit) {
-                                var dx = 0f
-                                var dy = 0f
+                                var accumulatedDx = 0f
+                                var accumulatedDy = 0f
                                 detectDragGestures(
-                                    onDragStart = { dx = 0f; dy = 0f },
+                                    onDragStart = {
+                                        accumulatedDx = 0f
+                                        accumulatedDy = 0f
+                                    },
                                     onDrag = { change, dragAmount ->
                                         change.consume()
-                                        dx += dragAmount.x
-                                        dy += dragAmount.y
-                                    },
-                                    onDragEnd = {
-                                        pendingDir = if (abs(dx) > abs(dy)) {
-                                            if (dx > 0) Dir.RIGHT else Dir.LEFT
-                                        } else {
-                                            if (dy > 0) Dir.DOWN else Dir.UP
+                                        accumulatedDx += dragAmount.x
+                                        accumulatedDy += dragAmount.y
+
+                                        if (abs(accumulatedDx) > 24f || abs(accumulatedDy) > 24f) {
+                                            if (abs(accumulatedDx) > abs(accumulatedDy)) {
+                                                val newDir = if (accumulatedDx > 0) Dir.RIGHT else Dir.LEFT
+                                                if ((newDir == Dir.LEFT && state.dir != Dir.RIGHT) || (newDir == Dir.RIGHT && state.dir != Dir.LEFT)) {
+                                                    pendingDir = newDir
+                                                    accumulatedDx = 0f
+                                                    accumulatedDy = 0f
+                                                }
+                                            } else {
+                                                val newDir = if (accumulatedDy > 0) Dir.DOWN else Dir.UP
+                                                if ((newDir == Dir.UP && state.dir != Dir.DOWN) || (newDir == Dir.DOWN && state.dir != Dir.UP)) {
+                                                    pendingDir = newDir
+                                                    accumulatedDx = 0f
+                                                    accumulatedDy = 0f
+                                                }
+                                            }
                                         }
                                     }
                                 )

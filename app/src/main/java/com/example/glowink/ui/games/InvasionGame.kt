@@ -137,7 +137,6 @@ fun InvasionGameScreen(onExit: () -> Unit, onGameOver: (Int) -> Unit) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Header Bar con botón Volver
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -156,7 +155,7 @@ fun InvasionGameScreen(onExit: () -> Unit, onGameOver: (Int) -> Unit) {
                         .padding(8.dp)
                 )
                 Text(
-                    text = "INVASIÓN NEÓN",
+                    text = "INVASIÓN NEÓN 👾",
                     color = Color.White,
                     fontWeight = FontWeight.Black,
                     fontSize = 18.sp
@@ -184,7 +183,6 @@ fun InvasionGameScreen(onExit: () -> Unit, onGameOver: (Int) -> Unit) {
                     val w = size.width
                     val h = size.height
 
-                    // Starfield
                     repeat(25) { i ->
                         drawCircle(
                             Color.White.copy(alpha = starAlpha),
@@ -193,19 +191,16 @@ fun InvasionGameScreen(onExit: () -> Unit, onGameOver: (Int) -> Unit) {
                         )
                     }
 
-                    // Player
                     drawRect(
                         ElectricCyan,
                         Offset(playerX * w - 20.dp.toPx(), 0.88f * h),
                         Size(40.dp.toPx(), 20.dp.toPx())
                     )
 
-                    // Bullets
                     bullets.forEach { b ->
                         drawCircle(NeonLime, radius = 5.dp.toPx(), center = Offset(b.x * w, b.y * h))
                     }
 
-                    // Enemies
                     enemies.forEach { e ->
                         drawRect(
                             Color.Red,

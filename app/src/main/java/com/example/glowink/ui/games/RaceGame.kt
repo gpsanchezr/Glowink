@@ -1,56 +1,30 @@
 package com.example.glowink.ui.games
 
-import com.example.glowink.ui.components.GameActionButton
-
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.glowink.ui.theme.ElectricCyan
-import com.example.glowink.ui.theme.NeonLime
-import com.example.glowink.ui.theme.ObsidianBackground
+import com.example.glowink.ui.components.GameActionButton
+import com.example.glowink.ui.theme.*
+import com.example.glowink.util.GlowSoundManager
 import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
-
-/**
- * "Carrera Glow": carrera de fichas por un circuito ovalado propio, inspirada en la idea
- * genérica de "juego de mesa donde fichas recorren una pista y se capturan entre sí" (el
- * mismo principio detrás de juegos centenarios de dominio público como el Pachisi indio) —
- * NO copia el tablero en forma de cruz ni el arte de ningún juego comercial: el circuito,
- * los colores y la presentación son propios de Glowink. Reglas: se necesita un 6 para salir
- * de la base, capturas al caer exacto sobre la ficha de un rival (salvo en casillas
- * "seguras" ⭐), sacar 6 da turno extra, y gana quien complete la vuelta primero.
- */
 
 private const val LOOP_LENGTH = 24
 
@@ -59,7 +33,7 @@ private val PLAYER_NAMES = listOf("Verde", "Cian", "Rosa", "Dorado")
 
 private data class RaceState(
     val numPlayers: Int = 2,
-    val positions: List<Int> = listOf(-1, -1, -1, -1), // -1 = en base, 0..LOOP_LENGTH = en pista/meta
+    val positions: List<Int> = listOf(-1, -1, -1, -1),
     val currentPlayer: Int = 0,
     val lastRoll: Int = 0,
     val rolling: Boolean = false,
@@ -137,17 +111,17 @@ fun RaceGameScreen(
     onExit: () -> Unit,
     onGameOver: (winnerIsPlayerZero: Boolean) -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     var state by remember { mutableStateOf(RaceState(numPlayers = numPlayers, positions = List(4) { -1 })) }
     var reported by remember { mutableStateOf(false) }
 
     if (state.winner != null && !reported) {
         reported = true
         onGameOver(state.winner == 0)
-        com.example.glowink.util.GlowSoundManager.playVictory(context)
+        GlowSoundManager.playVictory(context)
     }
 
-    androidx.compose.runtime.DisposableEffect(Unit) {
+    DisposableEffect(Unit) {
         onDispose {
             state = state.copy(rolling = false)
         }
@@ -155,7 +129,7 @@ fun RaceGameScreen(
 
     LaunchedEffect(state.rolling) {
         if (state.rolling) {
-            com.example.glowink.util.GlowSoundManager.playGameAction(context)
+            GlowSoundManager.playGameAction(context)
             delay(650)
             val roll = Random.nextInt(1, 7)
             state = applyRoll(state.copy(rolling = false), roll)
@@ -176,7 +150,7 @@ fun RaceGameScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("← Salir", color = ElectricCyan, fontSize = 15.sp, modifier = Modifier.clickable(onClick = onExit))
-                Text("CARRERA GLOW", color = Color.White, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                Text("CARRERA GLOW 🏁", color = Color.White, fontWeight = FontWeight.Black, fontSize = 16.sp)
                 Spacer(modifier = Modifier.size(1.dp))
             }
 
@@ -199,7 +173,7 @@ fun RaceGameScreen(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.fillMaxWidth(),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -263,7 +237,6 @@ private fun RaceTrackCanvas(state: RaceState) {
             return Offset(cx + radiusX * cos(angle), cy + radiusY * sin(angle))
         }
 
-        // Pista
         for (i in 0 until LOOP_LENGTH) {
             val p = cellCenter(i)
             val safe = isSafeCell(i, state.numPlayers)
@@ -274,7 +247,6 @@ private fun RaceTrackCanvas(state: RaceState) {
             )
         }
 
-        // Bases (fuera del círculo, una por jugador)
         for (p in 0 until state.numPlayers) {
             val baseAngle = -Math.PI.toFloat() / 2f + (2f * Math.PI.toFloat() * startCellFor(p, state.numPlayers) / LOOP_LENGTH)
             val baseCenter = Offset(cx + (radiusX * 1.32f) * cos(baseAngle), cy + (radiusY * 1.32f) * sin(baseAngle))
@@ -285,7 +257,6 @@ private fun RaceTrackCanvas(state: RaceState) {
             }
         }
 
-        // Fichas en pista
         for (p in 0 until state.numPlayers) {
             val pos = state.positions[p]
             if (pos in 0 until LOOP_LENGTH) {
@@ -295,7 +266,6 @@ private fun RaceTrackCanvas(state: RaceState) {
                 drawCircle(color = Color.Black.copy(alpha = 0.4f), radius = cellR * 1.05f, center = center + jitter)
                 drawCircle(color = PLAYER_COLORS[p], radius = cellR * 0.95f, center = center + jitter)
             } else if (pos == LOOP_LENGTH) {
-                // Ficha en meta: se dibuja en el centro
                 val homeCenter = Offset(cx + (p - state.numPlayers / 2f) * cellR * 2f, cy)
                 drawCircle(color = PLAYER_COLORS[p], radius = cellR, center = homeCenter)
             }

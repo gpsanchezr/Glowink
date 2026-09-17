@@ -56,7 +56,7 @@ fun RunGameScreen(onExit: () -> Unit, onGameOver: (Int) -> Unit) {
                 lastFrameTime = time
 
                 // Physics
-                playerVelocity += delta * 2.8f // Gravity
+                playerVelocity += delta * 2.8f
                 playerY = (playerY + playerVelocity * delta).coerceIn(0.2f, 0.8f)
                 if (playerY >= 0.8f) playerVelocity = 0f
 
@@ -109,7 +109,6 @@ fun RunGameScreen(onExit: () -> Unit, onGameOver: (Int) -> Unit) {
                 .padding(innerPadding)
                 .background(Color(0xFF070514))
         ) {
-            // Top Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -127,7 +126,7 @@ fun RunGameScreen(onExit: () -> Unit, onGameOver: (Int) -> Unit) {
                         .clickable { exitGame() }
                         .padding(8.dp)
                 )
-                Text("GLOW RUNNER", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                Text("GLOW RUNNER 🏃", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
                 Text("SCORE: $score", color = NeonLime, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
 
@@ -146,17 +145,14 @@ fun RunGameScreen(onExit: () -> Unit, onGameOver: (Int) -> Unit) {
                     val w = size.width
                     val h = size.height
 
-                    // Ground
                     drawLine(NeonLime, Offset(0f, 0.82f * h), Offset(w, 0.82f * h), 4f)
 
-                    // Player
                     drawRect(
                         ElectricCyan,
                         Offset(0.2f * w - 15.dp.toPx(), playerY * h - 30.dp.toPx()),
                         Size(30.dp.toPx(), 30.dp.toPx())
                     )
 
-                    // Obstacles
                     obstacles.forEach { o ->
                         drawRect(
                             Color.Red,
