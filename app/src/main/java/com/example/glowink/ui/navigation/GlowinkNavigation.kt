@@ -14,9 +14,13 @@ import com.example.glowink.ui.auth.LoginScreen
 import com.example.glowink.ui.auth.RegistrationScreen
 import com.example.glowink.ui.auth.WelcomeScreen
 import com.example.glowink.ui.avatar.AvatarCreationScreen
+import com.example.glowink.ui.games.BombGameScreen
 import com.example.glowink.ui.games.DuelGameScreen
+import com.example.glowink.ui.games.InvasionGameScreen
 import com.example.glowink.ui.games.QuizGameScreen
 import com.example.glowink.ui.games.RaceGameScreen
+import com.example.glowink.ui.games.RushGameScreen
+import com.example.glowink.ui.games.RunGameScreen
 import com.example.glowink.ui.games.SnakeGameScreen
 import com.example.glowink.ui.screens.Avatar3DViewerScreen
 import com.example.glowink.ui.screens.CameraScreen
@@ -58,6 +62,10 @@ object GlowinkRoutes {
     const val GAME_DUEL = "game_duel"
     const val GAME_RACE = "game_race"
     const val GAME_QUIZ = "game_quiz"
+    const val GAME_INVASION = "game_invasion"
+    const val GAME_BOMB = "game_bomb"
+    const val GAME_RUSH = "game_rush"
+    const val GAME_RUN = "game_run"
 }
 
 /** Navega a una pestaña inferior compartida por Chats/Juegos/Perfil/Descubrir. */
@@ -80,7 +88,7 @@ private fun NavHostController.navigateToTab(index: Int) {
  * Motor de Navegación Principal (NavHost) para la aplicación Glowink.
  *
  * Flujo de navegación independiente:
- * WelcomeScreen -> LoginScreen (o RegistrationScreen) -> AvatarCreationScreen -> Pantalla principal (ChatsListScreen)
+ * WelcomeScreen -> LoginScreen (o RegisterScreen) -> AvatarEditorScreen -> Pantalla principal de la app (ChatsList)
  */
 @Composable
 fun GlowinkAppNavigation(
@@ -127,12 +135,14 @@ fun GlowinkAppNavigation(
 
         composable(GlowinkRoutes.REGISTER) { _: NavBackStackEntry ->
             RegistrationScreen(
-                onBackClick = { navController.popBackStack() },
-                onNavigateToLogin = { navController.navigate(GlowinkRoutes.LOGIN) },
+                onBackClick = {
+                    navController.navigate(GlowinkRoutes.LOGIN)
+                },
+                onNavigateToLogin = {
+                    navController.navigate(GlowinkRoutes.LOGIN)
+                },
                 onRegisterSuccess = {
-                    navController.navigate(GlowinkRoutes.AVATAR_EDITOR) {
-                        popUpTo(GlowinkRoutes.WELCOME) { inclusive = true }
-                    }
+                    navController.navigate(GlowinkRoutes.AVATAR_EDITOR)
                 },
                 viewModel = sharedViewModel
             )
@@ -166,7 +176,7 @@ fun GlowinkAppNavigation(
                     navController.navigate(GlowinkRoutes.SHOP)
                 },
                 onNavigateToClan = {
-                    navController.navigate(GlowinkRoutes.DISCOVER)
+                    navController.navigate(GlowinkRoutes.DISCOVER) // Redirigir a Descubrir como fallback del clan
                 },
                 onLogout = {
                     sharedViewModel.logout()
@@ -187,25 +197,6 @@ fun GlowinkAppNavigation(
                     sharedViewModel.selectChat(friendId)
                     navController.navigate(GlowinkRoutes.CHAT_SCREEN)
                 }
-            )
-        }
-
-        composable(GlowinkRoutes.CHAT_SCREEN) { _: NavBackStackEntry ->
-            ChatScreen(
-                viewModel = sharedViewModel,
-                onBackClick = {
-                    navController.popBackStack()
-                },
-                onFriendProfileClick = {
-                    navController.navigate(GlowinkRoutes.FRIEND_PROFILE)
-                }
-            )
-        }
-
-        composable(GlowinkRoutes.FRIEND_PROFILE) { _: NavBackStackEntry ->
-            FriendProfileScreen(
-                viewModel = sharedViewModel,
-                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -247,7 +238,11 @@ fun GlowinkAppNavigation(
                 onPlayCulebra = { navController.navigate(GlowinkRoutes.GAME_SNAKE) },
                 onPlayDuelo = { navController.navigate(GlowinkRoutes.GAME_DUEL) },
                 onPlayCarrera = { navController.navigate(GlowinkRoutes.GAME_RACE) },
-                onPlayQuiz = { navController.navigate(GlowinkRoutes.GAME_QUIZ) }
+                onPlayQuiz = { navController.navigate(GlowinkRoutes.GAME_QUIZ) },
+                onPlayInvasion = { navController.navigate(GlowinkRoutes.GAME_INVASION) },
+                onPlayBomb = { navController.navigate(GlowinkRoutes.GAME_BOMB) },
+                onPlayRush = { navController.navigate(GlowinkRoutes.GAME_RUSH) },
+                onPlayRun = { navController.navigate(GlowinkRoutes.GAME_RUN) }
             )
         }
 
@@ -296,6 +291,69 @@ fun GlowinkAppNavigation(
                         stats.copy(highScoreQuiz = maxOf(stats.highScoreQuiz, score))
                     }
                 }
+            )
+        }
+
+        composable(GlowinkRoutes.GAME_INVASION) { _: NavBackStackEntry ->
+            InvasionGameScreen(
+                onExit = { navController.popBackStack() },
+                onGameOver = { score ->
+                    sharedViewModel.grantGameReward(coinsEarned = (score / 10).coerceAtLeast(5)) { stats ->
+                        stats.copy(highScoreCulebra = maxOf(stats.highScoreCulebra, score)) // Reusing Culebra slot as generic arcade
+                    }
+                }
+            )
+        }
+
+        composable(GlowinkRoutes.GAME_BOMB) { _: NavBackStackEntry ->
+            BombGameScreen(
+                onExit = { navController.popBackStack() },
+                onGameOver = { score ->
+                    sharedViewModel.grantGameReward(coinsEarned = (score / 10).coerceAtLeast(5)) { stats ->
+                        stats.copy(highScoreCulebra = maxOf(stats.highScoreCulebra, score))
+                    }
+                }
+            )
+        }
+
+        composable(GlowinkRoutes.GAME_RUSH) { _: NavBackStackEntry ->
+            RushGameScreen(
+                onExit = { navController.popBackStack() },
+                onGameOver = { score ->
+                    sharedViewModel.grantGameReward(coinsEarned = (score / 10).coerceAtLeast(5)) { stats ->
+                        stats.copy(highScoreCulebra = maxOf(stats.highScoreCulebra, score))
+                    }
+                }
+            )
+        }
+
+        composable(GlowinkRoutes.GAME_RUN) { _: NavBackStackEntry ->
+            RunGameScreen(
+                onExit = { navController.popBackStack() },
+                onGameOver = { score ->
+                    sharedViewModel.grantGameReward(coinsEarned = (score / 10).coerceAtLeast(5)) { stats ->
+                        stats.copy(highScoreCulebra = maxOf(stats.highScoreCulebra, score))
+                    }
+                }
+            )
+        }
+
+        composable(GlowinkRoutes.CHAT_SCREEN) { _: NavBackStackEntry ->
+            ChatScreen(
+                viewModel = sharedViewModel,
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onFriendProfileClick = {
+                    navController.navigate(GlowinkRoutes.FRIEND_PROFILE)
+                }
+            )
+        }
+
+        composable(GlowinkRoutes.FRIEND_PROFILE) { _: NavBackStackEntry ->
+            FriendProfileScreen(
+                viewModel = sharedViewModel,
+                onBackClick = { navController.popBackStack() }
             )
         }
 

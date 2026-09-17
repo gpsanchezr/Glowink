@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.glowink.ui.theme.*
+import com.example.glowink.util.GlowHapticManager
 import com.example.glowink.util.GlowSoundManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -184,6 +185,7 @@ fun SnakeGameScreen(
     var state by remember { mutableStateOf(SnakeState()) }
     var pendingDir by remember { mutableStateOf(Dir.RIGHT) }
     var reported by remember { mutableStateOf(false) }
+    var lastFrameTime by remember { mutableLongStateOf(0L) }
 
     val timeMillis = remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(isPlaying) {
@@ -213,30 +215,48 @@ fun SnakeGameScreen(
         isPlaying = true
     }
 
-    // Loop principal del juego cuando se está jugando
+    // Loop principal del juego cuando se está jugando (60 FPS Canvas compatible)
     LaunchedEffect(isPlaying, state.started, state.gameOver, state.victory) {
         if (!isPlaying || !state.started || state.gameOver || state.victory) return@LaunchedEffect
-        val tickMs = (190L - (currentLevelId * 14L)).coerceAtLeast(100L)
+        
         var lastScore = state.score
+        var accumulator = 0f
 
-        while (isActive) {
-            delay(tickMs)
-            state = advanceSnake(state, pendingDir)
-            if (state.score > lastScore) {
-                GlowSoundManager.playGameAction(context)
-                lastScore = state.score
-            }
-            if (state.gameOver) {
-                GlowSoundManager.playVictory(context)
-            }
-            if (state.victory) {
-                GlowSoundManager.playVictory(context)
-                // Desbloqueo progresivo guardado
-                if (currentLevelId < 5) {
-                    unlockedLevelId = maxOf(unlockedLevelId, currentLevelId + 1)
-                } else {
-                    unlockedWorldId = maxOf(unlockedWorldId, currentWorldId + 1)
-                    unlockedLevelId = 1
+        while (isActive && !state.gameOver && !state.victory) {
+            withFrameMillis { time ->
+                if (lastFrameTime == 0L) lastFrameTime = time
+                val delta = (time - lastFrameTime) / 1000f
+                lastFrameTime = time
+
+                val tickDuration = (0.19f - (currentLevelId * 0.014f)).coerceAtLeast(0.1f)
+                accumulator += delta
+
+                if (accumulator >= tickDuration) {
+                    accumulator -= tickDuration
+                    state = advanceSnake(state, pendingDir)
+                    
+                    if (state.score > lastScore) {
+                        GlowSoundManager.playGameAction(context)
+                        GlowHapticManager.vibrateImpact(context)
+                        lastScore = state.score
+                    }
+                    
+                    if (state.gameOver) {
+                        GlowSoundManager.playVictory(context)
+                        GlowHapticManager.vibrateError(context)
+                    }
+                    
+                    if (state.victory) {
+                        GlowSoundManager.playVictory(context)
+                        GlowHapticManager.vibrateSuccess(context)
+                        // Desbloqueo progresivo guardado
+                        if (currentLevelId < 5) {
+                            unlockedLevelId = maxOf(unlockedLevelId, currentLevelId + 1)
+                        } else {
+                            unlockedWorldId = maxOf(unlockedWorldId, currentWorldId + 1)
+                            unlockedLevelId = 1
+                        }
+                    }
                 }
             }
         }

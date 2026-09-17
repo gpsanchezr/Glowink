@@ -80,7 +80,11 @@ fun GamesScreen(
     onPlayCulebra: () -> Unit = {},
     onPlayDuelo: () -> Unit = {},
     onPlayCarrera: () -> Unit = {},
-    onPlayQuiz: () -> Unit = {}
+    onPlayQuiz: () -> Unit = {},
+    onPlayInvasion: () -> Unit = {},
+    onPlayBomb: () -> Unit = {},
+    onPlayRush: () -> Unit = {},
+    onPlayRun: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val uiState by viewModel.chatsListUiState.collectAsState()
@@ -422,7 +426,7 @@ fun GamesScreen(
             onDismiss = { selectedGameForDetail = null },
             onPlay = {
                 selectedGameForDetail = null
-                launchGame(g.id, onPlayCulebra, onPlayDuelo, onPlayCarrera, onPlayQuiz, context)
+                launchGame(g.id, onPlayCulebra, onPlayDuelo, onPlayCarrera, onPlayQuiz, onPlayInvasion, onPlayBomb, onPlayRush, onPlayRun)
             }
         )
     }
@@ -1301,12 +1305,19 @@ private fun launchGame(
     onDuelo: () -> Unit,
     onCarrera: () -> Unit,
     onQuiz: () -> Unit,
-    context: android.content.Context
+    onInvasion: () -> Unit,
+    onBomb: () -> Unit,
+    onRush: () -> Unit,
+    onRun: () -> Unit
 ) {
     when (id.lowercase()) {
-        "glow_fighters", "duel_neon", "duelo", "free_fire", "cod", "brawl" -> onDuelo()
-        "neon_rush", "cyber_riders", "carrera", "asphalt", "glow_run" -> onCarrera()
+        "glow_fighters", "duel_neon", "duelo" -> onDuelo()
+        "neon_rush", "asphalt" -> onRush()
+        "cyber_riders", "carrera" -> onCarrera()
         "cyber_rush", "quiz", "cyber_quiz" -> onQuiz()
+        "neon_invasion" -> onInvasion()
+        "bomb_squad" -> onBomb()
+        "glow_run" -> onRun()
         else -> onCulebra()
     }
 }
