@@ -382,9 +382,9 @@ fun SnakeGameScreen(
                                 drawLine(currentWorld.accentColor.copy(alpha = 0.12f), Offset(0f, j * ch), Offset(size.width, j * ch), strokeWidth = 1.5f)
                             }
 
-                            // 2. RENDERIZADO DE ÁRBOLES Y HONGOS EN EL BOSQUE NEÓN
+                            // 2. RENDERIZADO DE ELEMENTOS DEL MUNDO 1 (BOSQUE NEÓN) O MUNDO 2 (ABISMO GLOW)
                             if (currentWorldId == 1) {
-                                // Dibujar árboles bioluminiscentes en celdas decorativas fijas
+                                // Árboles bioluminiscentes
                                 val treeCells = listOf(Cell(2, 3), Cell(10, 4), Cell(1, 12), Cell(11, 14), Cell(4, 16))
                                 treeCells.forEach { tree ->
                                     val center = Offset(tree.x * cw + cw / 2, tree.y * ch + ch / 2)
@@ -394,7 +394,7 @@ fun SnakeGameScreen(
                                     drawCircle(color = NeonLime.copy(alpha = 0.35f), radius = radius * 1.3f, center = center, style = Stroke(width = 6f))
                                 }
 
-                                // Dibujar hongos neón magenta en celdas decorativas
+                                // Hongos neón magenta
                                 val mushroomCells = listOf(Cell(8, 2), Cell(3, 8), Cell(9, 10), Cell(2, 17))
                                 mushroomCells.forEach { mush ->
                                     val center = Offset(mush.x * cw + cw / 2, mush.y * ch + ch / 2)
@@ -405,7 +405,7 @@ fun SnakeGameScreen(
                                     drawCircle(color = Color.White, radius = 2.5f, center = Offset(center.x + capRadius * 0.4f, center.y - capRadius * 0.4f))
                                 }
 
-                                // Dibuja Luciérnagas Titilantes de Fondo
+                                // Luciérnagas Titilantes
                                 val fireflyCells = listOf(Cell(1, 1), Cell(6, 3), Cell(11, 7), Cell(3, 11), Cell(8, 15))
                                 fireflyCells.forEach { ff ->
                                     val center = Offset(ff.x * cw + cw / 2, ff.y * ch + ch / 2)
@@ -413,6 +413,69 @@ fun SnakeGameScreen(
                                     val flickerAlpha = 0.35f + 0.65f * abs(sin((timeMillis.longValue + seed) / 180f))
                                     drawCircle(color = Color(0xFFFFD24C).copy(alpha = 0.4f * flickerAlpha), radius = 10f, center = center)
                                     drawCircle(color = Color(0xFFFFFFB0).copy(alpha = flickerAlpha), radius = 4f, center = center)
+                                }
+                            } else if (currentWorldId == 2) {
+                                // MUNDO 2: ABISMO GLOW (Corales, Ruinas, Medusas y Burbujas - FASE 8)
+                                val coralCells = listOf(Cell(2, 4), Cell(10, 3), Cell(1, 13), Cell(11, 12))
+                                coralCells.forEach { coral ->
+                                    val center = Offset(coral.x * cw + cw / 2, coral.y * ch + ch / 2)
+                                    val radius = cw * 0.42f
+                                    drawCircle(color = Color(0xFF003D66), radius = radius, center = center)
+                                    drawCircle(color = ElectricCyan.copy(alpha = 0.35f), radius = radius * 1.3f, center = center, style = Stroke(width = 5f))
+                                    drawCircle(color = ElectricCyan, radius = radius, center = center, style = Stroke(width = 3f))
+                                }
+
+                                val ruinCells = listOf(Cell(8, 3), Cell(3, 15))
+                                ruinCells.forEach { ruin ->
+                                    val topLeft = Offset(ruin.x * cw + cw * 0.1f, ruin.y * ch + ch * 0.1f)
+                                    val boxSize = Size(cw * 0.8f, ch * 0.8f)
+                                    drawRoundRect(color = Color(0xFF3B2E0B), topLeft = topLeft, size = boxSize, cornerRadius = CornerRadius(8f, 8f))
+                                    drawRoundRect(color = Color(0xFFFFD700), topLeft = topLeft, size = boxSize, cornerRadius = CornerRadius(8f, 8f), style = Stroke(width = 3f))
+                                }
+
+                                // Medusas Rosadas Flotantes con Tentáculos Dinámicos
+                                val jellyfishCells = listOf(Cell(5, 2), Cell(2, 9), Cell(9, 11), Cell(4, 16))
+                                jellyfishCells.forEach { jelly ->
+                                    val seed = jelly.hashCode()
+                                    val swayX = sin((timeMillis.longValue + seed) / 300f) * (cw * 0.2f)
+                                    val center = Offset(jelly.x * cw + cw / 2 + swayX, jelly.y * ch + ch / 2)
+                                    val capRadius = cw * 0.38f
+
+                                    // Sombrero rosa
+                                    drawArc(
+                                        color = Color(0xFFFF007F).copy(alpha = 0.85f),
+                                        startAngle = 180f,
+                                        sweepAngle = 180f,
+                                        useCenter = true,
+                                        topLeft = Offset(center.x - capRadius, center.y - capRadius),
+                                        size = Size(capRadius * 2f, capRadius * 2f)
+                                    )
+
+                                    // Tentáculos oscilando
+                                    for (t in -2..2) {
+                                        val tentacleX = center.x + (t * (cw * 0.12f))
+                                        val tentacleSway = sin((timeMillis.longValue + seed + t * 50) / 200f) * 6f
+                                        drawLine(
+                                            color = Color(0xFFFF4FD8).copy(alpha = 0.75f),
+                                            start = Offset(tentacleX, center.y),
+                                            end = Offset(tentacleX + tentacleSway, center.y + ch * 0.4f),
+                                            strokeWidth = 2f
+                                        )
+                                    }
+                                }
+
+                                // Burbujas Submarinas Ascendentes
+                                val bubbleCells = listOf(Cell(1, 5), Cell(6, 7), Cell(11, 2), Cell(3, 14), Cell(8, 17))
+                                bubbleCells.forEach { bb ->
+                                    val seed = bb.hashCode()
+                                    val riseY = (bb.y * ch - ((timeMillis.longValue / 15) + seed) % (ch * 6f) + (ch * 6f)) % (ch * 6f)
+                                    val bubbleCenter = Offset(bb.x * cw + cw / 2 + sin((riseY + seed) / 30f) * 4f, riseY)
+                                    drawCircle(
+                                        color = Color(0xAA80F0FF),
+                                        radius = 5f,
+                                        center = bubbleCenter,
+                                        style = Stroke(width = 1.5f)
+                                    )
                                 }
                             }
 

@@ -11,9 +11,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.glowink.data.GameStats
 import com.google.firebase.auth.FirebaseAuth
 import com.example.glowink.ui.auth.LoginScreen
-import com.example.glowink.ui.auth.RegisterScreen
+import com.example.glowink.ui.auth.RegistrationScreen
 import com.example.glowink.ui.auth.WelcomeScreen
-import com.example.glowink.ui.avatar.AvatarEditorScreen
+import com.example.glowink.ui.avatar.AvatarCreationScreen
 import com.example.glowink.ui.games.DuelGameScreen
 import com.example.glowink.ui.games.QuizGameScreen
 import com.example.glowink.ui.games.RaceGameScreen
@@ -22,12 +22,15 @@ import com.example.glowink.ui.screens.Avatar3DViewerScreen
 import com.example.glowink.ui.screens.CameraScreen
 import com.example.glowink.ui.screens.ChatScreen
 import com.example.glowink.ui.screens.ChatsListScreen
+import com.example.glowink.ui.screens.ClanRankingScreen
+import com.example.glowink.ui.screens.CommunityDetailScreen
 import com.example.glowink.ui.screens.ContactsScreen
 import com.example.glowink.ui.screens.DiscoverScreen
 import com.example.glowink.ui.screens.FriendProfileScreen
 import com.example.glowink.ui.screens.GamesScreen
 import com.example.glowink.ui.screens.GlowFeedScreen
 import com.example.glowink.ui.screens.ProfileScreen
+import com.example.glowink.ui.screens.ShopScreen
 import com.example.glowink.ui.viewmodel.ChatViewModel
 
 /**
@@ -35,10 +38,8 @@ import com.example.glowink.ui.viewmodel.ChatViewModel
  */
 object GlowinkRoutes {
     const val WELCOME = "welcome"
-    const val SPLASH = "splash"
     const val LOGIN = "login"
     const val REGISTER = "register"
-    const val SIGN_UP = "register"
     const val AVATAR_EDITOR = "avatar_editor"
     const val CHATS_LIST = "chats_list"
     const val CONTACTS = "contacts"
@@ -79,7 +80,7 @@ private fun NavHostController.navigateToTab(index: Int) {
  * Motor de Navegación Principal (NavHost) para la aplicación Glowink.
  *
  * Flujo de navegación independiente:
- * WelcomeScreen -> LoginScreen (o RegisterScreen) -> AvatarEditorScreen -> Pantalla principal de la app (ChatsList)
+ * WelcomeScreen -> LoginScreen (o RegistrationScreen) -> AvatarCreationScreen -> Pantalla principal (ChatsListScreen)
  */
 @Composable
 fun GlowinkAppNavigation(
@@ -125,19 +126,20 @@ fun GlowinkAppNavigation(
         }
 
         composable(GlowinkRoutes.REGISTER) { _: NavBackStackEntry ->
-            RegisterScreen(
-                onNavigateToLogin = {
-                    navController.navigate(GlowinkRoutes.LOGIN)
-                },
-                onNavigateToAvatarCreation = {
-                    navController.navigate(GlowinkRoutes.AVATAR_EDITOR)
+            RegistrationScreen(
+                onBackClick = { navController.popBackStack() },
+                onNavigateToLogin = { navController.navigate(GlowinkRoutes.LOGIN) },
+                onRegisterSuccess = {
+                    navController.navigate(GlowinkRoutes.AVATAR_EDITOR) {
+                        popUpTo(GlowinkRoutes.WELCOME) { inclusive = true }
+                    }
                 },
                 viewModel = sharedViewModel
             )
         }
 
         composable(GlowinkRoutes.AVATAR_EDITOR) { _: NavBackStackEntry ->
-            com.example.glowink.ui.avatar.AvatarCreationScreen(
+            AvatarCreationScreen(
                 chatViewModel = sharedViewModel,
                 onDone = {
                     navController.navigate(GlowinkRoutes.CHATS_LIST) {
@@ -164,7 +166,7 @@ fun GlowinkAppNavigation(
                     navController.navigate(GlowinkRoutes.SHOP)
                 },
                 onNavigateToClan = {
-                    navController.navigate(GlowinkRoutes.DISCOVER) // Redirigir a Descubrir como fallback del clan
+                    navController.navigate(GlowinkRoutes.DISCOVER)
                 },
                 onLogout = {
                     sharedViewModel.logout()
@@ -185,6 +187,25 @@ fun GlowinkAppNavigation(
                     sharedViewModel.selectChat(friendId)
                     navController.navigate(GlowinkRoutes.CHAT_SCREEN)
                 }
+            )
+        }
+
+        composable(GlowinkRoutes.CHAT_SCREEN) { _: NavBackStackEntry ->
+            ChatScreen(
+                viewModel = sharedViewModel,
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onFriendProfileClick = {
+                    navController.navigate(GlowinkRoutes.FRIEND_PROFILE)
+                }
+            )
+        }
+
+        composable(GlowinkRoutes.FRIEND_PROFILE) { _: NavBackStackEntry ->
+            FriendProfileScreen(
+                viewModel = sharedViewModel,
+                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -213,7 +234,7 @@ fun GlowinkAppNavigation(
         }
 
         composable(GlowinkRoutes.SHOP) { _: NavBackStackEntry ->
-            com.example.glowink.ui.screens.ShopScreen(
+            ShopScreen(
                 viewModel = sharedViewModel,
                 onBack = { navController.popBackStack() }
             )
@@ -278,15 +299,6 @@ fun GlowinkAppNavigation(
             )
         }
 
-        composable(GlowinkRoutes.CHAT_SCREEN) { _: NavBackStackEntry ->
-            ChatScreen(
-                viewModel = sharedViewModel,
-                onBackClick = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
         composable(GlowinkRoutes.CAMERA) { _: NavBackStackEntry ->
             CameraScreen(
                 viewModel = sharedViewModel,
@@ -320,7 +332,7 @@ fun GlowinkAppNavigation(
 
         composable(GlowinkRoutes.COMMUNITY_DETAIL) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("id") ?: ""
-            com.example.glowink.ui.screens.CommunityDetailScreen(
+            CommunityDetailScreen(
                 viewModel = sharedViewModel,
                 communityId = id,
                 onBack = { navController.popBackStack() }
@@ -328,7 +340,7 @@ fun GlowinkAppNavigation(
         }
 
         composable(GlowinkRoutes.CLAN_RANKING) { _: NavBackStackEntry ->
-            com.example.glowink.ui.screens.ClanRankingScreen(
+            ClanRankingScreen(
                 viewModel = sharedViewModel,
                 onBack = { navController.popBackStack() }
             )
